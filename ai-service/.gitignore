@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.py[cod]
+chroma_db/
+temp/
+ocr_page/
+venv/
+.venv/
+test_page.png

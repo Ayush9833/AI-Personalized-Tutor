@@ -143,12 +143,100 @@ def add_chunks(chunks, course_id, concept):
 # SEARCH CHUNKS
 # ============================================================
 
+
+# ============================================================
+# SEARCH CHUNKS - FIXED
+# ============================================================
+
 def search_chunks(
     query,
     course_id,
     concept=None,
     number_of_results=3
 ):
+    """
+    Search course material.
+
+    If the requested concept has matching chunks, search within
+    that concept. If no matching chunks exist for the concept,
+    fall back to searching all material for the same course.
+    """
+
+    query = str(query or "").strip()
+    course_id = str(course_id or "").strip()
+
+    if not query or not course_id:
+        return []
+
+    number_of_results = max(1, int(number_of_results))
+
+    query_embedding = model.encode([query]).tolist()
+
+    # First try the requested concept.
+    if concept and str(concept).strip():
+        concept = str(concept).strip()
+
+        concept_filter = {
+            "$and": [
+                {"course_id": course_id},
+                {"concept": concept}
+            ]
+        }
+
+        concept_results = collection.query(
+            query_embeddings=query_embedding,
+            n_results=number_of_results,
+            where=concept_filter
+        )
+
+        documents = (concept_results.get("documents") or [[]])[0]
+
+        if documents:
+            metadatas = (concept_results.get("metadatas") or [[]])[0]
+
+            formatted_results = []
+
+            for document, metadata in zip(documents, metadatas):
+                metadata = metadata or {}
+                page = metadata.get("page", 0)
+
+                source = (
+                    f"\n\n[Source: Page {page}]\n"
+                    if page
+                    else "\n\n[Source: Page unknown]\n"
+                )
+
+                formatted_results.append(source + document)
+
+            return formatted_results
+
+    # No matching concept chunks: search all material for this course.
+    course_filter = {"course_id": course_id}
+
+    results = collection.query(
+        query_embeddings=query_embedding,
+        n_results=number_of_results,
+        where=course_filter
+    )
+
+    documents = (results.get("documents") or [[]])[0]
+    metadatas = (results.get("metadatas") or [[]])[0]
+
+    formatted_results = []
+
+    for document, metadata in zip(documents, metadatas):
+        metadata = metadata or {}
+        page = metadata.get("page", 0)
+
+        source = (
+            f"\n\n[Source: Page {page}]\n"
+            if page
+            else "\n\n[Source: Page unknown]\n"
+        )
+
+        formatted_results.append(source + document)
+
+    return formatted_results
 
     # --------------------------------------------------------
     # Create query embedding

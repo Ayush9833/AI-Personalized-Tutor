@@ -123,18 +123,17 @@ router.post("/generate", authMiddleware, async (req, res) => {
         // Call Python AI service
         // ---------------------------------------------
 
-        const response = await axios.post(
-            "http://127.0.0.1:8000/generate-quiz",
-            null,
-            {
-                params: {
-                    course_id: course_id,
-                    concept: selectedConcept,
-                    difficulty: difficulty
-                }
-            }
-        );
 
+
+const response = await axios.post(
+    "http://127.0.0.1:8000/generate-quiz",
+    {
+        course_id: String(course_id),
+        concept: String(selectedConcept),
+        difficulty: String(difficulty),
+        number_of_questions: 5
+    }
+);
 
         const generatedQuiz = response.data;
 if (
@@ -168,21 +167,116 @@ if (
         // Save quiz in MongoDB
         // ---------------------------------------------
 
-        const quiz = await AIQuiz.create({
 
-            student: req.user.id,
+        // ---------------------------------------------
+        // Normalize and shuffle quiz options
+        // ---------------------------------------------
 
-            course: course_id,
+        const generatedQuestions = generatedQuiz.questions;
 
-            concept: selectedConcept,
+        const normalizedQuestions = generatedQuestions.map((q) => {
+            const rawOptions = Array.isArray(q.options)
+                ? q.options
+                : [
+                    q.options?.A,
+                    q.options?.B,
+                    q.options?.C,
+                    q.options?.D
+                ];
 
-            difficulty: difficulty,
+            const sourceAnswer = String(
+                q.correct_answer ?? q.correctAnswer ?? ""
+            ).trim();
 
-            questions: generatedQuiz.questions
+            const sourceLetter = ["A", "B", "C", "D"].find(
+                letter =>
+                    letter.toLowerCase() === sourceAnswer.toLowerCase()
+            );
 
+            // Identify the correct answer text BEFORE shuffling.
+            const correctText = sourceLetter
+                ? rawOptions["ABCD".indexOf(sourceLetter)]
+                : sourceAnswer;
+
+            // Fisher-Yates shuffle.
+            const shuffledOptions = [...rawOptions];
+
+            for (let i = shuffledOptions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+
+                [
+                    shuffledOptions[i],
+                    shuffledOptions[j]
+                ] = [
+                    shuffledOptions[j],
+                    shuffledOptions[i]
+                ];
+            }
+
+            const options = {
+                A: shuffledOptions[0],
+                B: shuffledOptions[1],
+                C: shuffledOptions[2],
+                D: shuffledOptions[3]
+            };
+
+            // Recalculate the answer letter after shuffling.
+            const correctAnswer = ["A", "B", "C", "D"].find(
+                letter =>
+                    typeof options[letter] === "string" &&
+                    options[letter].trim().toLowerCase() ===
+                    String(correctText).trim().toLowerCase()
+            );
+
+            return {
+                question: String(q.question ?? "").trim(),
+                options,
+                correctAnswer: correctAnswer || "",
+                concept: q.concept || selectedConcept,
+                difficulty: q.difficulty || difficulty,
+                explanation: String(q.explanation ?? "")
+            };
         });
 
+        // Validate normalized questions before saving.
+        const invalidQuestion = normalizedQuestions.some(q =>
+            !q.question ||
+            !["A", "B", "C", "D"].every(
+                letter =>
+                    typeof q.options[letter] === "string" &&
+                    q.options[letter].trim().length > 0
+            ) ||
+            !["A", "B", "C", "D"].includes(q.correctAnswer) ||
+            new Set(
+                Object.values(q.options).map(
+                    option => option.trim().toLowerCase()
+                )
+            ).size !== 4
+        );
 
+        if (invalidQuestion) {
+            return res.status(502).json({
+                message: "AI generated an invalid quiz question",
+                error: "Each question must have four distinct options and a valid correct answer."
+            });
+        }
+
+        console.log(
+            "SHUFFLED QUESTIONS:",
+            JSON.stringify(normalizedQuestions, null, 2)
+        );
+
+        // ---------------------------------------------
+        // Save quiz in MongoDB
+        // ---------------------------------------------
+
+        const quiz = await AIQuiz.create({
+            student: req.user.id,
+            course: course_id,
+            concept: selectedConcept,
+            difficulty: difficulty,
+            questions: normalizedQuestions
+        });
         // ---------------------------------------------
         // Send response
         // ---------------------------------------------
@@ -208,12 +302,15 @@ if (
 
     } catch (error) {
 
-        console.error(
-            "AI Quiz Generation Error:",
-            error.response?.data ||
-            error.message
-        );
 
+console.error(
+    "AI Quiz Generation Error:",
+    JSON.stringify(
+        error.response?.data ?? error.message,
+        null,
+        2
+    )
+);
 
         res.status(500).json({
 

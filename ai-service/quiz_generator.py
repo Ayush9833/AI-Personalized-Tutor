@@ -449,30 +449,30 @@ def generate_quiz(
         raise ValueError(
             "Difficulty must be easy, medium, or hard."
         )
+# -------------------------------------------------
+# Search student's uploaded material
+# -------------------------------------------------
 
-    # -------------------------------------------------
-    # Search student's uploaded material
-    # -------------------------------------------------
+chunks = search_chunks(
+    concept,
+    course_id,
+    number_of_results=5
+)
 
-    chunks = search_chunks(
-        concept,
-        course_id,
-        number_of_results=5
-    )
+# Debugging information
+print("DEBUG: course_id =", course_id)
+print("DEBUG: concept =", concept)
+print("DEBUG: chunks type =", type(chunks))
+print("DEBUG: chunks count =", len(chunks) if chunks else 0)
+print(
+    "DEBUG: first chunk =",
+    repr(chunks[0])[:300] if chunks else "EMPTY"
+)
 
-    if chunks:
-
-        context = "\n\n".join(
-            chunks
-        )
-
-    else:
-
-        context = (
-            "No relevant uploaded course material "
-            "was found."
-        )
-
+if chunks:
+    context = "\n\n".join(chunks)
+else:
+    context = "No relevant uploaded course material was found."
     # -------------------------------------------------
     # Prompt
     # -------------------------------------------------

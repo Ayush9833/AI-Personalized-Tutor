@@ -1,353 +1,544 @@
+import io
+import json
+import logging
 import os
 import re
-import json
 import shutil
 import subprocess
 import tempfile
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+import time
+from typing import Optional
 
 import fitz
 import pytesseract
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from PIL import Image
+from pydantic import BaseModel, Field
 
 from rag import add_chunks, search_chunks, delete_concept
 
+load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ai-personalized-tutor")
 
 app = FastAPI(
     title="AI Personalized Tutor AI Service",
-    version="1.0.0"
+    version="2.0.1",
 )
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
-# ============================================================
-# TESSERACT CONFIGURATION
-# ============================================================
-
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe\tesseract.exe"
+TESSERACT_PATH = os.getenv(
+    "TESSERACT_PATH",
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
 )
 
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
 
 # ============================================================
-# BASIC ROUTES
+# REQUEST MODELS
 # ============================================================
 
+class QuizRequest(BaseModel):
+    course_id: str = Field(..., min_length=1)
+    concept: str = Field(..., min_length=1)
+    difficulty: str = "medium"
+    number_of_questions: int = Field(default=5, ge=1, le=20)
+
+
+class ChunkTextRequest(BaseModel):
+    text: str = ""
+
+
+class RecommendationRequest(BaseModel):
+    course_id: str
+    concept: str
+    status: str = "weak"
+    mastery: float = 0
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def error_response(message, error, status_code=500):
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "message": message,
+            "error": str(error),
+        },
+    )
+
+
+def format_context(results):
+    """Convert retrieved study material into readable text."""
+    if not results:
+        return ""
+
+    if isinstance(results, str):
+        return results.strip()
+
+    formatted = []
+
+    if isinstance(results, dict):
+        documents = results.get("documents")
+
+        if isinstance(documents, list):
+            for entry in documents:
+                if isinstance(entry, list):
+                    formatted.extend(
+                        str(item) for item in entry if item
+                    )
+                elif entry:
+                    formatted.append(str(entry))
+        else:
+            value = results.get(
+                "text",
+                results.get("content", results.get("document", "")),
+            )
+            if value:
+                formatted.append(str(value))
+
+    elif isinstance(results, list):
+        for item in results:
+            if isinstance(item, str):
+                if item.strip():
+                    formatted.append(item.strip())
+
+            elif isinstance(item, dict):
+                value = item.get(
+                    "text",
+                    item.get("content", item.get("document", "")),
+                )
+                if value:
+                    formatted.append(str(value).strip())
+
+            elif item is not None:
+                formatted.append(str(item))
+
+    else:
+        formatted.append(str(results))
+
+    return "\n\n".join(
+        part for part in formatted if part.strip()
+    )
+
+
+def get_gemini_client():
+    from google import genai
+
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY is missing. Add it to your .env file."
+        )
+
+    return genai.Client(api_key=api_key)
+
+
+
+def generate_gemini_content(prompt, retries=3):
+    client = get_gemini_client()
+
+    # Primary model followed by optional fallback models.
+    fallback_models = [
+        model.strip()
+        for model in os.getenv(
+            "GEMINI_FALLBACK_MODELS", ""
+        ).split(",")
+        if model.strip()
+    ]
+
+    models_to_try = list(dict.fromkeys(
+        [GEMINI_MODEL] + fallback_models
+    ))
+
+    last_error = None
+
+    for model in models_to_try:
+        for attempt in range(retries):
+            try:
+                logger.info(
+                    "Generating content with model=%s, attempt=%s",
+                    model,
+                    attempt + 1,
+                )
+
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+
+                if not response or not getattr(response, "text", None):
+                    raise ValueError(
+                        "Gemini returned an empty response."
+                    )
+
+                return response.text.strip()
+
+            except Exception as error:
+                last_error = error
+                message = str(error).upper()
+
+                temporary_error = any(
+                    term in message
+                    for term in (
+                        "503",
+                        "UNAVAILABLE",
+                        "HIGH DEMAND",
+                        "RESOURCE_EXHAUSTED",
+                        "429",
+                        "500",
+                        "INTERNAL SERVER ERROR",
+                        "TIMEOUT",
+                    )
+                )
+
+                if not temporary_error:
+                    raise
+
+                if attempt < retries - 1:
+                    wait_seconds = 2 ** (attempt + 1)
+
+                    logger.warning(
+                        "Temporary error on %s. "
+                        "Retrying in %s seconds: %s",
+                        model,
+                        wait_seconds,
+                        error,
+                    )
+                    time.sleep(wait_seconds)
+                else:
+                    logger.warning(
+                        "Retries exhausted for model=%s",
+                        model,
+                    )
+
+    raise RuntimeError(
+        "All configured Gemini models failed. "
+        f"Last error: {last_error}"
+    ) from last_error
+
+
+
+
+def parse_json_response(text):
+    """Parse JSON even when Gemini wraps it in Markdown fences."""
+    if not text:
+        raise ValueError("Gemini returned an empty response.")
+
+    cleaned = text.strip()
+
+    cleaned = re.sub(
+        r"^\s*```(?:json)?\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+
+    cleaned = re.sub(
+        r"\s*```\s*$",
+        "",
+        cleaned,
+    )
+
+    try:
+        return json.loads(cleaned)
+
+    except json.JSONDecodeError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+
+        if start != -1 and end > start:
+            return json.loads(cleaned[start:end + 1])
+
+        raise
+
+
+def normalize_generated_questions(raw_questions, requested_count):
+    """Validate quiz questions and normalize the answer format."""
+    if not isinstance(raw_questions, list):
+        raise ValueError(
+            "Gemini response must contain a questions array."
+        )
+
+    validated = []
+
+    for index, question in enumerate(raw_questions):
+        if not isinstance(question, dict):
+            logger.warning(
+                "Skipping malformed question at index %s.",
+                index,
+            )
+            continue
+
+        question_text = question.get("question")
+        raw_options = question.get("options")
+
+        if not isinstance(question_text, str):
+            continue
+
+        question_text = question_text.strip()
+
+        if isinstance(raw_options, dict):
+            options = [
+                raw_options.get("A"),
+                raw_options.get("B"),
+                raw_options.get("C"),
+                raw_options.get("D"),
+            ]
+        elif isinstance(raw_options, list):
+            options = raw_options
+        else:
+            continue
+
+        if (
+            not question_text
+            or len(options) != 4
+            or any(
+                not isinstance(option, str) or not option.strip()
+                for option in options
+            )
+        ):
+            continue
+
+        options = [option.strip() for option in options]
+
+        if len({option.casefold() for option in options}) != 4:
+            continue
+
+        raw_answer = (
+            question.get("correct_answer")
+            or question.get("correctAnswer")
+        )
+
+        if not isinstance(raw_answer, str) or not raw_answer.strip():
+            continue
+
+        answer = raw_answer.strip()
+
+        if answer.upper() in ("A", "B", "C", "D"):
+            correct_answer = options[
+                ("A", "B", "C", "D").index(answer.upper())
+            ]
+        else:
+            correct_answer = next(
+                (
+                    option
+                    for option in options
+                    if option.casefold() == answer.casefold()
+                ),
+                None,
+            )
+
+            if correct_answer is None:
+                logger.warning(
+                    "Skipping question %s: answer does not match an option.",
+                    index + 1,
+                )
+                continue
+
+        validated.append({
+            "question": question_text,
+            "options": options,
+            "correct_answer": correct_answer,
+            "explanation": str(
+                question.get("explanation") or ""
+            ).strip(),
+        })
+
+    if len(validated) < requested_count:
+        raise ValueError(
+            f"Gemini returned only {len(validated)} valid questions; "
+            f"{requested_count} were requested."
+        )
+
+    return validated[:requested_count]
+
+# ---------------------------------------------------------------------
+# Basic routes
+# ---------------------------------------------------------------------
 @app.get("/")
 def root():
-
     return {
-        "message": "AI Personalized Tutor AI Service is running"
+        "message": "AI Personalized Tutor AI Service is running",
+        "status": "OK",
     }
 
 
 @app.get("/health")
 def health():
-
     return {
         "status": "OK",
-        "message": "AI service is healthy"
+        "message": "AI service is healthy",
+        "model": GEMINI_MODEL,
     }
 
 
-# ============================================================
-# TEXT EXTRACTION FROM PDF
-# ============================================================
-
+# ---------------------------------------------------------------------
+# PDF extraction and OCR
+# ---------------------------------------------------------------------
 def extract_pdf_text(pdf_path):
-
-    """
-    Extract text from PDF.
-
-    First tries normal PDF text extraction.
-    If a page contains little/no text, OCR is used.
-    """
-
-    document = fitz.open(pdf_path)
-
     pages = []
 
-    # Temporary OCR directory
-    os.makedirs("ocr_page", exist_ok=True)
+    with fitz.open(pdf_path) as document:
+        for page_number, page in enumerate(document, start=1):
+            text = page.get_text("text").strip()
 
-    for page_number in range(len(document)):
-
-        page = document[page_number]
-
-        # ----------------------------------------------------
-        # Try normal PDF text extraction
-        # ----------------------------------------------------
-
-        text = page.get_text("text").strip()
-
-        # ----------------------------------------------------
-        # If extracted text is insufficient, use OCR
-        # ----------------------------------------------------
-
-        if len(text) < 50:
-
-            try:
-
-                pix = page.get_pixmap(
-                    matrix=fitz.Matrix(2, 2),
-                    alpha=False
-                )
-
-                image_path = os.path.join(
-                    "ocr_page",
-                    f"page_{page_number + 1}.png"
-                )
-
-                pix.save(image_path)
-
-                image = Image.open(image_path)
-
-                text = pytesseract.image_to_string(
-                    image
-                ).strip()
-
-                # Remove temporary OCR image
+            # Use OCR when the PDF page contains little or no text.
+            if len(text) < 50:
                 try:
-                    os.remove(image_path)
-                except Exception:
-                    pass
+                    pix = page.get_pixmap(
+                        matrix=fitz.Matrix(2, 2),
+                        alpha=False,
+                    )
+                    image_bytes = pix.tobytes("png")
 
-            except Exception as error:
+                    with Image.open(io.BytesIO(image_bytes)) as image_obj:
+                        text = pytesseract.image_to_string(image_obj).strip()
 
-                print(
-                    f"OCR failed on page {page_number + 1}:",
-                    error
-                )
+                except Exception as error:
+                    logger.warning(
+                        "OCR failed on page %s: %s",
+                        page_number,
+                        error,
+                    )
 
-                text = ""
-
-        # ----------------------------------------------------
-        # Store page
-        # ----------------------------------------------------
-
-        if text:
-
-            pages.append(
-                f"[Page {page_number + 1}]\n{text}"
-            )
-
-    document.close()
+            if text:
+                pages.append(f"[Page {page_number}]\n{text}")
 
     return "\n\n".join(pages)
 
 
-# ============================================================
-# CHUNK TEXT
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Text chunking
+# ---------------------------------------------------------------------
 def create_chunks(text, chunk_size=1000, overlap=200):
-
-    """
-    Convert page-aware text into chunks.
-
-    Example:
-
-    [Page 1]
-    text...
-
-    [Page 2]
-    text...
-    """
-
-    if not text:
+    if not text or not text.strip():
         return []
 
-    # --------------------------------------------------------
-    # Split using page markers
-    # --------------------------------------------------------
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero.")
 
-    pages = re.split(
-        r"\[Page\s+(\d+)\]",
-        text
-    )
+    if overlap < 0 or overlap >= chunk_size:
+        raise ValueError(
+            "overlap must be non-negative and smaller than chunk_size."
+        )
+
+    parts = re.split(r"\[Page\s+(\d+)\]", text)
+    pages = []
+
+    if len(parts) > 1:
+        i = 1
+
+        while i + 1 < len(parts):
+            try:
+                page_number = int(parts[i])
+            except ValueError:
+                page_number = 0
+
+            pages.append((page_number, parts[i + 1].strip()))
+            i += 2
+    else:
+        pages.append((1, text.strip()))
 
     chunks = []
+    step = chunk_size - overlap
 
-    # re.split produces:
-    # ["", "1", "page text", "2", "page text", ...]
-
-    i = 1
-
-    while i < len(pages):
-
-        page_number = pages[i]
-
-        page_text = ""
-
-        if i + 1 < len(pages):
-
-            page_text = pages[i + 1].strip()
-
-        try:
-
-            page_number = int(page_number)
-
-        except Exception:
-
-            page_number = 0
-
+    for page_number, page_text in pages:
         if not page_text:
-
-            i += 2
             continue
-
-        # ----------------------------------------------------
-        # Split page text into chunks
-        # ----------------------------------------------------
 
         start = 0
 
         while start < len(page_text):
-
-            end = start + chunk_size
-
-            chunk_text = page_text[start:end].strip()
+            chunk_text = page_text[start:start + chunk_size].strip()
 
             if chunk_text:
+                chunks.append({
+                    "text": chunk_text,
+                    "page": page_number,
+                })
 
-                chunks.append(
-                    {
-                        "text": chunk_text,
-                        "page": page_number
-                    }
-                )
-
-            # ------------------------------------------------
-            # Move forward while keeping overlap
-            # ------------------------------------------------
-
-            if end >= len(page_text):
-
+            if start + chunk_size >= len(page_text):
                 break
 
-            start = end - overlap
-
-        i += 2
+            start += step
 
     return chunks
 
 
-# ============================================================
-# PROCESS PDF
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Process PDF
+# ---------------------------------------------------------------------
 @app.post("/process-pdf")
 async def process_pdf(
     file: UploadFile = File(...),
     course_id: str = Form(...),
-    concept: str = Form(...)
+    concept: str = Form(...),
 ):
-
-    temp_path = None
+    temp_dir = None
 
     try:
+        if not file.filename or not file.filename.lower().endswith(".pdf"):
+            return JSONResponse(
+                status_code=400,
+                content={"message": "Only PDF files are supported."},
+            )
 
-        # ----------------------------------------------------
-        # Validate PDF
-        # ----------------------------------------------------
+        course_id = course_id.strip()
+        concept = concept.strip()
 
-        if not file.filename.lower().endswith(".pdf"):
-
+        if not course_id or not concept:
             return JSONResponse(
                 status_code=400,
                 content={
-                    "message": "Only PDF files are supported."
-                }
+                    "message": "course_id and concept are required."
+                },
             )
-
-        # ----------------------------------------------------
-        # Create temporary PDF
-        # ----------------------------------------------------
 
         temp_dir = tempfile.mkdtemp()
-
-        temp_path = os.path.join(
-            temp_dir,
-            file.filename
-        )
-
-        # ----------------------------------------------------
-        # Save uploaded file
-        # ----------------------------------------------------
+        temp_path = os.path.join(temp_dir, "uploaded.pdf")
 
         with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-            shutil.copyfileobj(
-                file.file,
-                buffer
-            )
+        logger.info("Processing PDF: %s", file.filename)
 
-        print(
-            f"Processing PDF: {file.filename}"
-        )
-
-        # ----------------------------------------------------
-        # Extract text
-        # ----------------------------------------------------
-
-        text = extract_pdf_text(
-            temp_path
-        )
+        text = extract_pdf_text(temp_path)
 
         if not text.strip():
-
             return JSONResponse(
                 status_code=400,
                 content={
-                    "message": "Could not extract text from PDF."
-                }
+                    "message": (
+                        "Could not extract text from PDF. Check that the PDF "
+                        "is readable and OCR is installed."
+                    )
+                },
             )
 
-        print(
-            f"Extracted characters: {len(text)}"
-        )
-
-        # ----------------------------------------------------
-        # Create chunks
-        # ----------------------------------------------------
-
-        chunks = create_chunks(
-            text,
-            chunk_size=1000,
-            overlap=200
-        )
-
-        print(
-            f"Created chunks: {len(chunks)}"
-        )
+        chunks = create_chunks(text)
 
         if not chunks:
-
             return JSONResponse(
                 status_code=400,
                 content={
                     "message": "No chunks were created from the PDF."
-                }
+                },
             )
 
-        # ----------------------------------------------------
-        # Store chunks in ChromaDB
-        # ----------------------------------------------------
+        added = add_chunks(chunks, course_id, concept)
 
-        added = add_chunks(
-            chunks,
-            course_id,
-            concept
-        )
-
-        print(
-            f"Added chunks to ChromaDB: {added}"
-        )
+        logger.info("Extracted characters: %s", len(text))
+        logger.info("Created chunks: %s", len(chunks))
+        logger.info("Added chunks to ChromaDB: %s", added)
 
         return {
             "message": "PDF processed successfully",
@@ -356,114 +547,76 @@ async def process_pdf(
             "concept": concept,
             "characters": len(text),
             "chunks": len(chunks),
-            "chunks_added": added
+            "chunks_added": added,
         }
 
     except Exception as error:
-
-        print(
-            "PDF processing error:",
-            repr(error)
-        )
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "PDF processing failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("PDF processing failed")
+        return error_response("PDF processing failed", error)
 
     finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-        # ----------------------------------------------------
-        # Delete temporary directory
-        # ----------------------------------------------------
-
-        if temp_path:
-
-            try:
-
-                temp_dir = os.path.dirname(
-                    temp_path
-                )
-
-                if os.path.exists(temp_dir):
-
-                    shutil.rmtree(
-                        temp_dir,
-                        ignore_errors=True
-                    )
-
-            except Exception:
-
-                pass
+        await file.close()
 
 
-# ============================================================
-# CHUNK TEXT ENDPOINT
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Chunk text endpoint
+# ---------------------------------------------------------------------
 @app.post("/chunk-text")
-async def chunk_text(data: dict):
-
+async def chunk_text(data: ChunkTextRequest):
     try:
-
-        text = data.get(
-            "text",
-            ""
-        )
-
-        if not text:
-
+        if not data.text.strip():
             return JSONResponse(
                 status_code=400,
-                content={
-                    "message": "Text is required."
-                }
+                content={"message": "Text is required."},
             )
 
-        chunks = create_chunks(
-            text,
-            chunk_size=1000,
-            overlap=200
-        )
+        chunks = create_chunks(data.text)
 
         return {
             "chunks": chunks,
-            "count": len(chunks)
+            "count": len(chunks),
         }
 
     except Exception as error:
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Chunking failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("Chunking failed")
+        return error_response("Chunking failed", error)
 
 
-# ============================================================
-# SEARCH
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Search study material
+# ---------------------------------------------------------------------
 @app.get("/search")
 def search(
     query: str,
     course_id: str,
-    concept: str = None,
-    number_of_results: int = 3
+    concept: Optional[str] = None,
+    number_of_results: int = 3,
 ):
-
     try:
+        if not query.strip() or not course_id.strip():
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "message": "query and course_id are required."
+                },
+            )
+
+        if number_of_results < 1:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "message": "number_of_results must be at least 1."
+                },
+            )
 
         results = search_chunks(
             query=query,
             course_id=course_id,
             concept=concept,
-            number_of_results=number_of_results
+            number_of_results=number_of_results,
         )
 
         return {
@@ -471,597 +624,457 @@ def search(
             "course_id": course_id,
             "concept": concept,
             "results": results,
-            "count": len(results)
+            "count": len(results) if results is not None else 0,
         }
 
     except Exception as error:
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Search failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("Search failed")
+        return error_response("Search failed", error)
 
 
-# ============================================================
-# ASK
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Ask AI using uploaded study material
+# ---------------------------------------------------------------------
 @app.get("/ask")
 async def ask(
     query: str,
     course_id: str,
-    concept: str = None
+    concept: Optional[str] = None,
 ):
-
     try:
-
         results = search_chunks(
             query=query,
             course_id=course_id,
             concept=concept,
-            number_of_results=5
+            number_of_results=5,
         )
 
-        if not results:
+        context = format_context(results)
 
+        if not context:
             return {
                 "answer": (
-                    "The uploaded material does not provide "
-                    "enough information to answer this question."
+                    "No relevant study material was found. "
+                    "Please upload the relevant study material first."
                 ),
-                "sources": []
+                "sources": [],
             }
-
-        # ----------------------------------------------------
-        # Build context
-        # ----------------------------------------------------
-
-        context = "\n\n".join(results)
-
-        # ----------------------------------------------------
-        # Gemini configuration
-        # ----------------------------------------------------
-
-        from google import genai
-
-        api_key = os.getenv(
-            "GEMINI_API_KEY"
-        )
-
-        if not api_key:
-
-            return {
-                "answer": (
-                    "Relevant information was found, "
-                    "but the Gemini API key is not configured."
-                ),
-                "sources": results
-            }
-
-        client = genai.Client(
-            api_key=api_key
-        )
 
         prompt = f"""
-You are an AI Personalized Tutor.
+You are an AI Personalized Tutor for a B.Tech CSE student.
+Answer the student's question using the uploaded study material
+as the primary source.
 
-Answer the student's question using ONLY the
-provided study material.
-
-If the answer is not present in the material,
-clearly say that the uploaded material does not
-contain enough information.
-
-Explain the answer in simple language suitable
-for a B.Tech CSE student.
+Explain concepts clearly. Do not claim the uploaded material says
+something it does not.
 
 Student question:
-
 {query}
 
 Study material:
-
 {context}
 
-Give a clear and educational answer.
+Give a clear, accurate and well-structured answer.
 """
 
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=prompt
-        )
-
-        answer = response.text
+        answer = generate_gemini_content(prompt)
 
         return {
             "answer": answer,
-            "sources": results
+            "sources": results,
         }
 
     except Exception as error:
-
-        print(
-            "Ask error:",
-            repr(error)
-        )
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "AI answer generation failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("AI answer generation failed")
+        return error_response("AI answer generation failed", error)
 
 
-# ============================================================
-# RECOMMEND
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Recommendations
+# ---------------------------------------------------------------------
 @app.post("/recommend")
-async def recommend(data: dict):
-
+async def recommend(data: RecommendationRequest):
     try:
-
-        # ----------------------------------------------------
-        # Get recommendation data
-        # ----------------------------------------------------
-
-        course_id = data.get(
-            "course_id",
-            ""
-        )
-
-        concept = data.get(
-            "concept",
-            ""
-        )
-
-        mastery = data.get(
-            "mastery",
-            0
-        )
-
-        status = data.get(
-            "status",
-            "weak"
-        )
-
-        # ----------------------------------------------------
-        # Validate course ID
-        # ----------------------------------------------------
+        course_id = data.course_id.strip()
+        concept = data.concept.strip()
 
         if not course_id:
-
             return JSONResponse(
                 status_code=400,
-                content={
-                    "message": "course_id is required."
-                }
+                content={"message": "course_id is required."},
             )
-
-        # ----------------------------------------------------
-        # Validate concept
-        # ----------------------------------------------------
 
         if not concept:
-
             return JSONResponse(
                 status_code=400,
-                content={
-                    "message": "concept is required."
-                }
+                content={"message": "concept is required."},
             )
 
-        # ----------------------------------------------------
-        # Find relevant study material
-        # ----------------------------------------------------
+        mastery = max(0.0, min(100.0, float(data.mastery)))
 
         results = search_chunks(
             query=concept,
             course_id=course_id,
             concept=concept,
-            number_of_results=5
+            number_of_results=5,
         )
 
-        # ----------------------------------------------------
-        # Convert mastery into number
-        # ----------------------------------------------------
-
-        try:
-
-            mastery = float(mastery)
-
-        except Exception:
-
-            mastery = 0
-
-        # ----------------------------------------------------
-        # Generate recommendation priority
-        # ----------------------------------------------------
-
         if mastery < 40:
-
             priority = "high"
-
             action = (
-                "Study the fundamentals of this concept "
-                "and then attempt a basic practice quiz."
+                "Study the fundamentals of this concept and then "
+                "attempt a basic practice quiz."
             )
-
         elif mastery < 80:
-
             priority = "medium"
-
             action = (
-                "Practice more questions on this concept "
-                "and then attempt an intermediate quiz."
+                "Practice more questions on this concept and then "
+                "attempt an intermediate quiz."
             )
-
         else:
-
             priority = "low"
-
             action = (
-                "Review this concept with advanced questions "
-                "or move to the next concept."
+                "Review this concept with advanced questions or "
+                "move to the next concept."
             )
-
-        # ----------------------------------------------------
-        # Return recommendation
-        # ----------------------------------------------------
 
         return {
-
             "message": "Recommendation generated successfully",
-
             "course_id": course_id,
-
             "concept": concept,
-
             "mastery": mastery,
-
-            "status": status,
-
+            "status": data.status,
             "priority": priority,
-
             "action": action,
-
-            "study_material": results
-
+            "study_material": results,
         }
 
     except Exception as error:
-
-        print(
-            "Recommendation error:",
-            repr(error)
-        )
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Recommendation failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("Recommendation failed")
+        return error_response("Recommendation failed", error)
 
 
-# ============================================================
-# GENERATE QUIZ
-# ============================================================
+# ---------------------------------------------------------------------
+# Part 3 starts with the /generate-quiz endpoint.
+# Paste Part 3 directly below this section.
+# ---------------------------------------------------------------------
 
+# ---------------------------------------------------------------------
+# Generate quiz
+# ---------------------------------------------------------------------
 @app.post("/generate-quiz")
-async def generate_quiz(data: dict):
-
+async def generate_quiz(data: QuizRequest):
     try:
+        course_id = data.course_id.strip()
+        concept = data.concept.strip()
+        difficulty = data.difficulty.strip().lower()
+        number_of_questions = data.number_of_questions
 
-        course_id = data.get(
-            "course_id",
-            ""
-        )
-
-        concept = data.get(
-            "concept",
-            ""
-        )
-
-        difficulty = data.get(
-            "difficulty",
-            "medium"
-        )
-
-        number_of_questions = int(
-            data.get(
-                "number_of_questions",
-                5
+        if not course_id:
+            return JSONResponse(
+                status_code=400,
+                content={"message": "course_id is required."},
             )
+
+        if not concept:
+            return JSONResponse(
+                status_code=400,
+                content={"message": "concept is required."},
+            )
+
+        if difficulty not in ("easy", "medium", "hard"):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "message": "difficulty must be easy, medium, or hard."
+                },
+            )
+
+        logger.info(
+            "Quiz request: course=%s concept=%s difficulty=%s count=%s",
+            course_id,
+            concept,
+            difficulty,
+            number_of_questions,
         )
 
-        # ----------------------------------------------------
-        # Retrieve study material
-        # ----------------------------------------------------
-
+        # Retrieve relevant study material exactly once.
         results = search_chunks(
             query=concept,
             course_id=course_id,
             concept=concept,
-            number_of_results=10
+            number_of_results=10,
         )
 
-        context = "\n\n".join(
-            results
+        context = format_context(results)
+
+        logger.info(
+            "Quiz retrieval: course_id=%r concept=%r",
+            course_id,
+            concept,
+        )
+        logger.info(
+            "Quiz retrieval result type=%s count=%s",
+            type(results).__name__,
+            len(results) if results else 0,
+        )
+        logger.info(
+            "Quiz context length=%s preview=%r",
+            len(context),
+            context[:300],
         )
 
-        if not context:
-
+        if not context.strip():
             return JSONResponse(
                 status_code=400,
                 content={
                     "message": (
-                        "No study material found "
-                        "for this concept."
-                    )
-                }
+                        "No study material found for this course and concept. "
+                        "Upload and process a relevant PDF first."
+                    ),
+                    "course_id": course_id,
+                    "concept": concept,
+                    "retrieved_results": (
+                        len(results) if results else 0
+                    ),
+                },
             )
-
-        # ----------------------------------------------------
-        # Gemini
-        # ----------------------------------------------------
-
-        from google import genai
-
-        api_key = os.getenv(
-            "GEMINI_API_KEY"
-        )
-
-        if not api_key:
-
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "message": (
-                        "GEMINI_API_KEY is not configured."
-                    )
-                }
-            )
-
-        client = genai.Client(
-            api_key=api_key
-        )
 
         prompt = f"""
-Generate a multiple-choice quiz for a B.Tech CSE student.
+You are an expert educational quiz generator for a B.Tech CSE student.
+Generate exactly {number_of_questions} multiple-choice questions.
 
-Concept:
-
+CONCEPT:
 {concept}
 
-Difficulty:
-
+DIFFICULTY:
 {difficulty}
 
-Number of questions:
+RULES:
+1. Base questions on the supplied study material.
+2. Do not invent facts that contradict the study material.
+3. Each question must have exactly four distinct options.
+4. There must be exactly one correct option per question.
+5. The correct_answer must exactly match one option's full text.
+6. Questions must be clear and non-duplicative.
+7. Return JSON only. Do not include Markdown or introductory text.
 
-{number_of_questions}
-
-Use ONLY the provided study material.
-
-Study material:
-
-{context}
-
-Return ONLY valid JSON.
-
-Format:
-
+Required JSON structure:
 {{
   "questions": [
     {{
       "question": "Question text",
       "options": [
-        "Option A",
-        "Option B",
-        "Option C",
-        "Option D"
+        "First option",
+        "Second option",
+        "Third option",
+        "Fourth option"
       ],
-      "correct_answer": "Option A"
+      "correct_answer": "First option",
+      "explanation": "Brief explanation of the correct answer"
     }}
   ]
 }}
+
+STUDY MATERIAL:
+{context}
 """
 
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=prompt
+        generated_text = generate_gemini_content(prompt)
+
+        try:
+            quiz_data = parse_json_response(generated_text)
+        except (json.JSONDecodeError, ValueError) as error:
+            logger.error(
+                "Gemini returned invalid quiz JSON: %s",
+                generated_text[:1000],
+            )
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "message": "Gemini returned invalid quiz JSON.",
+                    "error": str(error),
+                },
+            )
+
+        if not isinstance(quiz_data, dict):
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "message": (
+                        "Gemini returned an unexpected quiz format."
+                    )
+                },
+            )
+
+        try:
+            questions = normalize_generated_questions(
+                quiz_data.get("questions"),
+                number_of_questions,
+            )
+        except ValueError as error:
+            logger.error("Quiz validation failed: %s", error)
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "message": (
+                        "Gemini returned invalid quiz questions."
+                    ),
+                    "error": str(error),
+                },
+            )
+
+        logger.info(
+            "Quiz generated successfully: %s questions",
+            len(questions),
         )
 
-        generated_text = response.text.strip()
+        return {"questions": questions}
 
-        # ----------------------------------------------------
-        # Remove Markdown code fences if Gemini adds them
-        # ----------------------------------------------------
-
-        generated_text = re.sub(
-            r"^```(?:json)?\s*",
-            "",
-            generated_text,
-            flags=re.IGNORECASE
-        )
-
-        generated_text = re.sub(
-            r"\s*```$",
-            "",
-            generated_text
-        )
-
-        quiz = json.loads(
-            generated_text
-        )
-
-        return quiz
-
-    except json.JSONDecodeError as error:
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Gemini returned invalid JSON",
-                "error": str(error)
-            }
-        )
+    except HTTPException:
+        raise
 
     except Exception as error:
+        logger.exception("Quiz generation failed")
 
-        print(
-            "Quiz generation error:",
-            repr(error)
-        )
+        message = str(error)
+        upper_message = message.upper()
+
+        if "GEMINI_API_KEY IS MISSING" in upper_message:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "message": (
+                        "Gemini API key is missing. "
+                        "Configure GEMINI_API_KEY in the .env file."
+                    )
+                },
+            )
+
+        if any(
+            term in upper_message
+            for term in (
+                "429",
+                "RESOURCE_EXHAUSTED",
+                "QUOTA",
+                "RATE LIMIT",
+            )
+        ):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "message": (
+                        "Gemini API quota or rate limit reached. "
+                        "Wait before retrying or check your Gemini API quota."
+                    )
+                },
+            )
+
+        if any(
+            term in upper_message
+            for term in ("503", "UNAVAILABLE", "HIGH DEMAND")
+        ):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "message": (
+                        "Gemini is temporarily unavailable. "
+                        "Please try again shortly."
+                    )
+                },
+            )
 
         return JSONResponse(
             status_code=500,
             content={
-                "message": "Quiz generation failed",
-                "error": str(error)
-            }
+                "message": "Quiz generation failed.",
+                "error": message,
+            },
         )
 
 
-# ============================================================
-# DELETE CONCEPT
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Delete concept
+# ---------------------------------------------------------------------
 @app.delete("/delete-concept")
-def remove_concept(
-    course_id: str,
-    concept: str
-):
-
+def remove_concept(course_id: str, concept: str):
     try:
-
-        deleted = delete_concept(
-            course_id,
-            concept
-        )
+        deleted = delete_concept(course_id, concept)
 
         return {
             "message": "Concept deleted successfully",
             "course_id": course_id,
             "concept": concept,
-            "deleted_chunks": deleted
+            "deleted_chunks": deleted,
         }
 
     except Exception as error:
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Failed to delete concept",
-                "error": str(error)
-            }
-        )
+        logger.exception("Delete concept failed")
+        return error_response("Failed to delete concept", error)
 
 
-# ============================================================
-# DEBUG METADATA
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Debug metadata
+# ---------------------------------------------------------------------
 @app.get("/debug-metadata")
-def debug_metadata(
-    course_id: str
-):
-
+def debug_metadata(course_id: str):
     try:
-
         from rag import collection
 
         results = collection.get(
-            where={
-                "course_id": str(course_id)
-            }
+            where={"course_id": str(course_id)}
         )
 
-        metadatas = results.get(
-            "metadatas",
-            []
-        )
+        metadatas = results.get("metadatas") or []
 
         return {
             "course_id": course_id,
             "count": len(metadatas),
-            "metadata": metadatas
+            "metadata": metadatas,
         }
 
     except Exception as error:
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "message": "Metadata debugging failed",
-                "error": str(error)
-            }
-        )
+        logger.exception("Metadata debugging failed")
+        return error_response("Metadata debugging failed", error)
 
 
-# ============================================================
-# STARTUP
-# ============================================================
-
+# ---------------------------------------------------------------------
+# Startup diagnostics
+# ---------------------------------------------------------------------
 @app.on_event("startup")
 def startup_event():
-
-    print("=" * 60)
-
-    print(
-        "AI PERSONALIZED TUTOR AI SERVICE"
-    )
-
-    print("=" * 60)
-
-    print(
-        "Tesseract path:",
-        pytesseract.pytesseract.tesseract_cmd
-    )
-
-    # --------------------------------------------------------
-    # Verify Tesseract
-    # --------------------------------------------------------
+    logger.info("=" * 60)
+    logger.info("AI PERSONALIZED TUTOR AI SERVICE")
+    logger.info("=" * 60)
+    logger.info("Gemini model: %s", GEMINI_MODEL)
+    logger.info("Tesseract path: %s", TESSERACT_PATH)
 
     try:
-
         version = subprocess.run(
-            [
-                pytesseract.pytesseract.tesseract_cmd,
-                "--version"
-            ],
+            [TESSERACT_PATH, "--version"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
+            check=True,
         )
 
-        print(
-            "Tesseract detected successfully."
-        )
+        version_text = (
+            version.stdout or version.stderr
+        ).splitlines()
 
-        print(
-            version.stdout.splitlines()[0]
-            if version.stdout
-            else version.stderr.splitlines()[0]
-            if version.stderr
-            else "Tesseract version detected."
+        logger.info(
+            "Tesseract detected: %s",
+            version_text[0] if version_text else "Version detected",
         )
 
     except Exception as error:
-
-        print(
-            "WARNING: Tesseract verification failed:"
+        logger.warning(
+            "Tesseract verification failed: %s",
+            error,
+        )
+        logger.warning(
+            "Selectable-text PDFs can still work. OCR requires Tesseract."
         )
 
-        print(
-            repr(error)
-        )
-
-    print("=" * 60)
+    logger.info("AI service startup complete.")
+    logger.info("=" * 60)

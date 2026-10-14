@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const axios = require("axios");
 
 const KnowledgeProfile = require("../models/KnowledgeProfile");
@@ -113,11 +113,9 @@ router.post("/ask", authMiddleware, async (req, res) => {
         // as QUERY PARAMETERS.
         // -------------------------------------------------
 
-        const response = await axios.post(
+        const response = await axios.get(
 
             "http://127.0.0.1:8000/ask",
-
-            null,
 
             {
                 params: {
@@ -180,3 +178,7 @@ router.post("/ask", authMiddleware, async (req, res) => {
 
 
 module.exports = router;
+
+
+
+

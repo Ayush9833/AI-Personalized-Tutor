@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LearningHUB — Learn your way</title>
+<link rel="icon" type="image/png" href="learninghub-icon.png">
+<style>
+:root{--bg:#fff;--panel:#fafafa;--card:#fff;--text:#1f2024;--muted:#73757d;--line:#e9e9ee;--purple:#7c3aed;--blue:#2563eb;--cyan:#06b6d4;--pink:#ec4899;--green:#10b981;--orange:#f59e0b;--shadow:0 10px 35px rgba(20,20,40,.07)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #7c3aed33;outline-offset:1px}
+.app{min-height:100vh;background:var(--bg)}.dark{--bg:#111318;--panel:#171a21;--card:#1e222b;--text:#f5f7fb;--muted:#b7beca;--line:#353b47;--shadow:none;--purple:#a78bfa;--blue:#60a5fa;--cyan:#22d3ee;--pink:#f472b6;--green:#34d399;--orange:#fbbf24}
+.top{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px);z-index:40}.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800}.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#06b6d4 55%,#f59e0b);box-shadow:0 7px 18px #7c3aed2b}.logo svg{width:27px;height:27px}.top-actions{display:flex;align-items:center;gap:8px}.top-icon{width:40px;height:40px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--muted);display:grid;place-items:center}.top-icon:hover{background:var(--panel);border-color:var(--line)}.login{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:11px;padding:9px 14px;font-weight:700}.mobile-menu{display:none}
+/* Simple first screen */
+.landing{max-width:960px;margin:auto;padding:88px 22px 70px}.hello{text-align:center;font-size:48px;line-height:1.08;letter-spacing:-2px;margin:0 0 12px;font-weight:750}.hello span{background:linear-gradient(90deg,#7c3aed,#ec4899,#06b6d4);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{text-align:center;color:var(--muted);max-width:690px;margin:0 auto 30px;line-height:1.6}.composer{border:1px solid var(--line);background:var(--card);border-radius:22px;padding:13px;box-shadow:var(--shadow)}.composer textarea{width:100%;min-height:76px;border:0;resize:none;outline:0;background:transparent;color:var(--text);padding:9px;font-size:17px}.composer-row{display:flex;justify-content:space-between;align-items:center;gap:10px}.tools{display:flex;gap:7px;flex-wrap:wrap}.tool,.mic-btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px;padding:8px 11px;font-weight:600}.tool:hover,.mic-btn:hover{border-color:#9b7bff}.ask{border:0;background:#1f2024;color:#fff;border-radius:10px;padding:10px 15px;font-weight:750}.dark .ask{background:#fff;color:#151515}.mic-btn{display:inline-flex;align-items:center;gap:7px}.mic-btn.recording{background:#7c3aed;color:#fff;border-color:#7c3aed;animation:pulse 1s infinite}.mic-status{font-size:11px;color:var(--muted);min-height:16px;margin:7px 3px 0}.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:18px}.chip{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;padding:8px 12px}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:64px}.feature{padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.feature-icon{font-size:23px;margin-bottom:9px}.feature b{display:block;margin-bottom:5px}.feature span{font-size:13px;color:var(--muted);line-height:1.5}.hint{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
+/* App workspace */
+.workspace{display:none;min-height:calc(100vh - 66px)}.workspace.show{display:grid;grid-template-columns:250px minmax(0,1fr);align-items:start}.side{border-right:1px solid var(--line);background:var(--panel);padding:18px 13px;display:flex;flex-direction:column;height:calc(100vh - 66px);min-height:0;position:sticky;top:66px;align-self:start;overflow-y:auto}.side-title{display:flex;align-items:center;justify-content:space-between;padding:0 9px 10px;font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.7px}.source-count{font-size:11px;padding:4px 7px;border-radius:99px;background:#e9e3ff;color:#6d35d7}.dark .source-count{background:#362b49;color:#d5c5ff}.navbtn{width:100%;display:flex;align-items:center;gap:10px;border:0;background:transparent;color:var(--text);padding:10px;border-radius:11px;text-align:left;margin:2px 0}.navbtn:hover,.navbtn.active{background:color-mix(in srgb,var(--purple) 10%,var(--panel));color:var(--purple)}.nav-icon{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:0 0 auto}.ic-purple{background:#ede9fe;color:#7c3aed}.ic-blue{background:#dbeafe;color:#2563eb}.ic-cyan{background:#cffafe;color:#0891b2}.ic-pink{background:#fce7f3;color:#db2777}.ic-green{background:#d1fae5;color:#059669}.ic-orange{background:#fef3c7;color:#d97706}.ic-yellow{background:#fef9c3;color:#a16207}.dark .ic-purple{background:#33284b}.dark .ic-blue{background:#172a45}.dark .ic-cyan{background:#11383e}.dark .ic-pink{background:#422335}.dark .ic-green{background:#16372d}.dark .ic-orange{background:#433419}.dark .ic-yellow{background:#3f3b18}.section-label{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.7px;margin:18px 9px 7px}.source-item{border:1px solid var(--line);background:var(--card);border-radius:13px;padding:10px;margin:7px 0;cursor:pointer}.source-item:hover{border-color:#b9a6ff;box-shadow:0 5px 16px #7c3aed0c}.source-row{display:flex;align-items:center;gap:9px}.source-name{font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source-meta{font-size:11px;color:var(--muted);margin-top:4px}.source-actions{display:flex;gap:5px;margin-top:8px}.mini-action{border:0;background:var(--panel);color:var(--muted);border-radius:8px;padding:5px 7px;font-size:11px}.mini-action:hover{color:var(--purple)}.side-spacer{display:none}.utility{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}.main{min-width:0;padding:32px 34px 50px;max-width:1100px;width:100%;margin:auto}.rightbar{border-left:1px solid var(--line);background:var(--panel);padding:8px 15px 18px;min-height:calc(100vh - 66px)}.right-title{display:flex;align-items:center;justify-content:space-between;padding:2px 5px 12px}.right-title b{font-size:15px}.right-title span{font-size:11px;color:var(--muted)}.studio-card{border:1px solid var(--line);background:var(--card);border-radius:15px;padding:13px;margin-bottom:10px}.studio-card h4{margin:0 0 3px;font-size:13px}.studio-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}.studio-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.studio-btn{min-height:70px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:13px;padding:9px;text-align:left;display:flex;flex-direction:column;justify-content:space-between}.studio-btn:hover{transform:translateY(-1px);border-color:#b9a6ff}.studio-icon{font-size:19px}.studio-btn strong{font-size:12px}.studio-btn small{font-size:10px;color:var(--muted)}.quick-source{display:flex;align-items:center;gap:9px;padding:9px;border-radius:11px;background:var(--panel);margin-top:8px}.quick-source b{font-size:12px}.quick-source span{font-size:10px;color:var(--muted)}
+/* Content */
+.page-title h1{font-size:30px;letter-spacing:-.8px;margin:0 0 7px}.page-title p{color:var(--muted);margin:0 0 23px;line-height:1.55}.big-card{border:1px solid var(--line);border-radius:18px;background:var(--card);padding:21px;margin-bottom:14px;box-shadow:var(--shadow)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid var(--line);border-radius:15px;padding:17px;background:var(--card)}.card h3{margin:0 0 7px}.card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}.home-layout{display:grid;grid-template-columns:1.35fr .65fr;gap:14px}.resource-board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}.resource-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card);cursor:pointer}.resource-card:hover{border-color:#b9a6ff;transform:translateY(-1px)}.resource-card .resource-top{display:flex;align-items:center;justify-content:space-between}.resource-card p{font-size:12px;color:var(--muted);line-height:1.45}.badge{font-size:10px;padding:4px 7px;border-radius:99px}.badge-blue{background:#dbeafe;color:#1d4ed8}.badge-pink{background:#fce7f3;color:#be185d}.badge-orange{background:#fef3c7;color:#b45309}.dark .badge-blue{background:#172a45;color:#93c5fd}.dark .badge-pink{background:#422335;color:#f9a8d4}.dark .badge-orange{background:#433419;color:#fcd34d}.quick-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.quick-btn{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:8px 10px;border-radius:10px;font-size:12px;font-weight:650}.quick-btn:hover{border-color:#a78bfa;color:var(--purple)}
+.learn-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:15px}.video-box{position:relative;aspect-ratio:16/9;border-radius:15px;background:linear-gradient(135deg,#15151b,#43366a);color:#fff;display:grid;place-items:center;overflow:hidden}.video-box:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 25%,#06b6d455,transparent 28%),radial-gradient(circle at 20% 80%,#ec489955,transparent 30%)}.video-content{position:relative;text-align:center;padding:20px}.play{width:62px;height:62px;border:0;border-radius:50%;display:grid;place-items:center;margin:0 auto 11px;background:#fff;color:#17171b;font-size:24px}.video-meta{font-size:11px;opacity:.75;margin-top:6px}.source-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--panel);border-radius:999px;padding:6px 9px;margin-top:10px}.explain h3{margin:18px 0 7px}.explain p,.explain li{font-size:14px;line-height:1.65;color:var(--muted)}.explain ul{padding-left:20px}.mindmap{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:18px;background:var(--panel);border-radius:15px}.mind-node{padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:12px;font-weight:700}.mind-node.core{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.dark .mind-node.core{background:#33284b;color:#ddd}.chat-card{position:sticky;top:82px}.avatar-panel{border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,#f7f4ff,#fff);padding:12px;margin-bottom:11px}.dark .avatar-panel{background:linear-gradient(145deg,#2d2639,#222)}.avatar-stage{height:180px;border-radius:13px;background:radial-gradient(circle at 50% 30%,#ffffff 0 10%,transparent 11%),linear-gradient(145deg,#17171c,#4b3b63);position:relative;overflow:hidden;display:grid;place-items:center;color:#fff}.avatar-glow{position:absolute;width:150px;height:150px;border-radius:50%;background:#a78bfa55;filter:blur(18px)}.avatar-person{position:relative;width:105px;height:145px}.avatar-head{width:72px;height:72px;border-radius:50%;background:linear-gradient(145deg,#f2c7a5,#b97856);margin:auto;position:relative;box-shadow:0 8px 25px #0005}.avatar-hair{position:absolute;left:2px;top:-4px;width:68px;height:36px;border-radius:45px 45px 20px 20px;background:#2a2020}.avatar-eye{position:absolute;top:34px;width:7px;height:7px;border-radius:50%;background:#242024}.avatar-eye.left{left:20px}.avatar-eye.right{right:20px}.avatar-mouth{position:absolute;left:29px;top:49px;width:14px;height:6px;border-radius:0 0 12px 12px;background:#6f3e3a}.avatar-body{width:105px;height:82px;margin:-1px auto 0;border-radius:48px 48px 14px 14px;background:linear-gradient(145deg,#8b5cf6,#5b3aa4)}.avatar-bars{position:absolute;bottom:10px;left:10px;display:flex;gap:4px;align-items:end}.avatar-bars i{width:4px;border-radius:4px;background:#fff;height:9px}.avatar-bars i:nth-child(2){height:17px}.avatar-bars i:nth-child(3){height:12px}.avatar-bars i:nth-child(4){height:19px}.avatar-stage.speaking .avatar-mouth{height:10px;animation:mouth .22s infinite alternate}.avatar-stage.speaking .avatar-bars i{animation:bars .55s infinite alternate}.avatar-stage.speaking .avatar-bars i:nth-child(2){animation-delay:.12s}.avatar-stage.speaking .avatar-bars i:nth-child(3){animation-delay:.24s}.avatar-stage.speaking .avatar-bars i:nth-child(4){animation-delay:.36s}.avatar-label{display:flex;justify-content:space-between;align-items:center;margin-top:9px;font-size:12px}.live{display:flex;align-items:center;gap:6px;color:#6d35d7;font-weight:750}.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#7c3aed;box-shadow:0 0 0 4px #7c3aed22}.messages{height:245px;overflow:auto;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel)}.msg{display:flex;gap:8px;margin:10px 0;line-height:1.5;font-size:13px}.bubble{padding:9px 11px;border-radius:12px;max-width:84%;background:var(--card);border:1px solid var(--line)}.me{justify-content:flex-end}.me .bubble{background:#1f2024;color:#fff;border-color:#1f2024}.dark .me .bubble{background:#fff;color:#111}.chatbar{display:flex;gap:7px;margin-top:9px}.chatbar input{flex:1;border:1px solid var(--line);border-radius:11px;padding:11px;background:transparent;color:var(--text);outline:0;min-width:0}.chatbar .mic-btn{padding:9px 11px}.chatbar .ask{padding:9px 12px}.statusline{font-size:10px;color:var(--muted);margin-top:6px}.tutor-tag{font-size:10px;padding:5px 8px;border-radius:99px;background:#ede9fe;color:#6d28d9}.dark .tutor-tag{background:#33284b;color:#d8c8ff}.quiz-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:14px;padding:15px;background:var(--card)}.quiz-strip p{margin:3px 0 0;color:var(--muted);font-size:12px}
+/* quiz modal */
+#quizSetupModal{position:fixed;inset:0;background:#0009;display:none;place-items:center;padding:18px;z-index:80}#quizSetupModal.show{display:grid}.quiz-setup-card{width:min(600px,100%);max-height:92vh;overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:23px;box-shadow:0 25px 70px #0005}.quiz-setup-card h2{margin:0 0 6px}.quiz-setup-card>p{color:var(--muted);font-size:13px;margin:0 0 18px}.quiz-setting{margin:16px 0}.quiz-setting label{display:block;font-size:12px;font-weight:800;margin-bottom:8px}.quiz-options{display:flex;flex-wrap:wrap;gap:7px}.quiz-option{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:8px 10px;border-radius:9px;font-size:12px}.quiz-option.active{border-color:#8b5cf6;background:#ede9fe;color:#6d28d9;font-weight:750}.dark .quiz-option.active{background:#33284b;color:#ddd}.quiz-custom,.specific-topic-wrap{display:none}.quiz-custom.show{display:block;width:160px;margin-top:9px;border:1px solid var(--line);border-radius:9px;padding:9px;background:transparent;color:var(--text)}.specific-topic-wrap.show{display:block;margin-top:9px}.specific-topic-wrap input{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:transparent;color:var(--text)}.setup-note{font-size:11px;color:var(--muted);background:var(--panel);padding:10px;border-radius:10px;margin-top:16px}.quiz-setup-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.quiz-cancel-btn{border:1px solid var(--line);background:transparent;color:var(--text);padding:9px 13px;border-radius:9px}.quiz-start-btn{border:0;background:#1f2024;color:#fff;padding:9px 14px;border-radius:9px;font-weight:750}.dark .quiz-start-btn{background:#fff;color:#111}
+/* misc pages */
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden}.progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7c3aed,#06b6d4)}.topic{display:flex;align-items:center;gap:12px;margin:14px 0}.topic .info{flex:1}.topic small{color:var(--muted)}.history{display:grid;gap:9px}.history .item{padding:13px;border:1px solid var(--line);border-radius:12px;display:flex;justify-content:space-between}.uploadbox{border:2px dashed var(--line);border-radius:18px;padding:45px;text-align:center;background:var(--card)}.uploadbox .big{font-size:40px}.filebtn{display:inline-block;border:0;background:#1f2024;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700}.dark .filebtn{background:#fff;color:#111}.selected-file{margin-top:12px;color:var(--muted);font-size:12px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.modal{position:fixed;inset:0;background:#0008;display:none;place-items:center;z-index:90;padding:20px}.modal.show{display:grid}.modalbox{width:min(420px,100%);background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:17px;padding:24px}.modalbox input{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;margin:8px 0 14px;background:transparent;color:inherit}.modalbox .primary{width:100%;padding:11px;border:0;background:#1f2024;color:#fff;border-radius:9px;font-weight:700}.dark .modalbox .primary{background:#fff;color:#111}.close{float:right;border:0;background:transparent;color:var(--text);font-size:21px}
+/* Accessible color system: no near-black text on dark backgrounds. */
+.dark .sub,.dark .hint,.dark .page-title p,.dark .card p,.dark .resource-card p,.dark .studio-card p,.dark .source-meta,.dark .statusline,.dark .video-meta,.dark .selected-file,.dark .explain p,.dark .explain li,.dark .quiz-strip p,.dark .quick-source span{color:var(--muted)!important}
+.dark .hello,.dark .brand,.dark .page-title h1,.dark h1,.dark h2,.dark h3,.dark h4,.dark h5,.dark h6,.dark p,.dark li,.dark label,.dark span,.dark b,.dark strong,.dark button,.dark input,.dark textarea{text-shadow:none}
+.dark .ask,.dark .quiz-start-btn,.dark .filebtn,.dark .modalbox .primary{background:#f7f8fb!important;color:#171a21!important}
+.dark .play{background:#f7f8fb;color:#171a21}
+.dark .bubble{background:#252a34;color:#f5f7fb}
+.dark .me .bubble{background:#f7f8fb;color:#171a21;border-color:#f7f8fb}
+.dark .mind-node.core,.dark .quiz-option.active,.dark .tutor-tag{color:#e9ddff!important}
+.dark .mind-node.core{background:#3a3153!important;border-color:#6d5a91}
+.dark .tutor-tag{background:#3a3153!important}
+.dark .live{color:#c4b5fd!important}
+.dark .source-count{background:#3a3153;color:#e9ddff}
+.dark .badge-blue{color:#bfdbfe}.dark .badge-pink{color:#fbcfe8}.dark .badge-orange{color:#fde68a}
+.dark .ic-purple{color:#c4b5fd}.dark .ic-blue{color:#93c5fd}.dark .ic-cyan{color:#67e8f9}.dark .ic-pink{color:#f9a8d4}.dark .ic-green{color:#6ee7b7}.dark .ic-orange{color:#fcd34d}.dark .ic-yellow{color:#fde68a}
+.dark .quick-btn:hover,.dark .mini-action:hover,.dark .navbtn:hover,.dark .navbtn.active{color:#c4b5fd}
+.dark .logo{box-shadow:0 7px 20px #0008}
+.dark [style*="color:#111"],.dark [style*="color: #111"],.dark [style*="color:#151515"],.dark [style*="color: #151515"],.dark [style*="color:#1f2024"],.dark [style*="color: #1f2024"]{color:var(--text)!important}
+.dark .studio-icon{filter:saturate(1.15) brightness(1.2)}
+@keyframes pulse{50%{box-shadow:0 0 0 7px #7c3aed33}}@keyframes mouth{to{transform:scaleY(.45)}}@keyframes bars{to{transform:scaleY(.35)}}
+@media(max-width:1120px){.workspace.show{grid-template-columns:225px minmax(0,1fr)}.rightbar{display:none}.main{max-width:1000px}.home-layout{grid-template-columns:1fr}.learn-grid{grid-template-columns:1fr}.chat-card{position:static}.resource-board{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.landing{padding-top:60px}.hello{font-size:37px}.features{grid-template-columns:1fr}.mobile-menu{display:grid}.workspace.show{display:block}.side{position:fixed;left:-270px;top:66px;bottom:0;width:260px;height:calc(100vh - 66px);min-height:0;overflow-y:auto;z-index:50;transition:.22s;box-shadow:12px 0 35px #0002}.side.open{left:0}.main{padding:25px 17px}.resource-board{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.composer-row{align-items:flex-end}.tools{max-width:75%}.top{padding:0 13px}.top .brand{font-size:16px}.top .login{display:none}.learn-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.hello{font-size:33px}.sub{font-size:14px}.tools .tool:nth-child(2){display:none}.ask{padding:9px 11px}.studio-grid{grid-template-columns:1fr 1fr}.quiz-setup-card{padding:18px}}
+
+/* FINAL DARK-MODE CONTRAST PASS: every primary text element explicitly follows the theme. */
+.dark .app,
+.dark .top,
+.dark .landing,
+.dark .workspace,
+.dark .main,
+.dark .side,
+.dark .rightbar{color:var(--text)}
+.dark .hello,
+.dark .brand,
+.dark .brand span,
+.dark .feature b,
+.dark .feature h3,
+.dark .card h3,
+.dark .card b,
+.dark .resource-card b,
+.dark .source-name,
+.dark .section-label,
+.dark .side-title,
+.dark .right-title b,
+.dark .studio-card h4,
+.dark .studio-btn strong,
+.dark .page-title h1,
+.dark .big-card h2,
+.dark .big-card h3,
+.dark .big-card h4,
+.dark .explain h3,
+.dark .explain b,
+.dark .quiz-strip b,
+.dark .chat-head h3,
+.dark .avatar-label b,
+.dark .quizq,
+.dark .quiz-setting label,
+.dark .quiz-setup-card h2,
+.dark .quiz-setup-card label,
+.dark .modalbox h2,
+.dark .history .item,
+.dark .topic b,
+.dark .learn-quick b,
+.dark .after-tool b{color:var(--text)!important}
+.dark .hello{color:#f5f7fb!important}
+.dark .sub,
+.dark .hint,
+.dark .feature span,
+.dark .card p,
+.dark .resource-card p,
+.dark .page-title p,
+.dark .studio-card p,
+.dark .studio-btn small,
+.dark .source-meta,
+.dark .source-count,
+.dark .mini-action,
+.dark .quick-source span,
+.dark .statusline,
+.dark .selected-file,
+.dark .explain p,
+.dark .explain li,
+.dark .quiz-strip p,
+.dark .after-tool small,
+.dark .learn-quick small{color:#c4cad5!important}
+.dark .tool,
+.dark .quick-btn,
+.dark .studio-btn,
+.dark .navbtn,
+.dark .chip,
+.dark .source-item,
+.dark .history .item,
+.dark .topic,
+.dark select,
+.dark input,
+.dark textarea{color:var(--text)!important}
+.dark input::placeholder,
+.dark textarea::placeholder{color:#9da6b5!important;opacity:1}
+.dark .feature,
+.dark .card,
+.dark .resource-card,
+.dark .big-card,
+.dark .composer,
+.dark .source-item,
+.dark .studio-card{color:var(--text)}
+.dark [style*="color:#111"],
+.dark [style*="color: #111"],
+.dark [style*="color:#151515"],
+.dark [style*="color: #151515"],
+.dark [style*="color:#1f2024"],
+.dark [style*="color: #1f2024"]{color:var(--text)!important}
+.dark .hello span{color:transparent!important;-webkit-text-fill-color:transparent!important}
+
+/* LearningHUB identity: reference graduation-cap learner icon, visible in both themes. */
+.logo{background:#000!important;border-radius:12px!important;overflow:hidden;padding:0!important;box-shadow:0 7px 18px rgba(0,0,0,.22)!important}
+.logo img{display:block;width:100%;height:100%;object-fit:cover;border-radius:12px}
+.dark .logo{background:#000!important;box-shadow:0 7px 20px rgba(0,0,0,.55)!important}
+
+/* Optional AI Tutor: kept out of the Learn lesson until the student chooses it. */
+.learn-grid-single{max-width:1050px;margin:0 auto}.tutor-callout{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px;margin-top:14px}.tutor-callout-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#ede9fe;font-size:21px}.dark .tutor-callout-icon{background:#33284b}.tutor-callout>div:nth-child(2){flex:1}.tutor-callout b{font-size:13px}.tutor-callout p{margin:3px 0 0;color:var(--muted);font-size:11px;line-height:1.45}.tutor-page{max-width:1050px;margin:0 auto}.tutor-hero{display:grid;grid-template-columns:380px minmax(0,1fr);gap:14px;margin-bottom:14px}.tutor-avatar-large{margin:0;padding:14px}.tutor-avatar-large .avatar-stage{height:280px}.tutor-avatar-large .avatar-person{transform:scale(1.2)}.tutor-intro{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:center}.tutor-intro h2{margin:12px 0 7px;font-size:24px}.tutor-intro p{color:var(--muted);font-size:13px;line-height:1.6;margin:0;max-width:600px}.tutor-suggestions{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}.tutor-suggestions button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px;padding:9px 11px;font-size:11px}.tutor-suggestions button:hover{border-color:#a78bfa}.tutor-chat-card{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:14px}.tutor-messages{height:360px;background:var(--panel)}.avatar-mic{position:absolute;right:10px;bottom:10px;border:1px solid rgba(255,255,255,.28);background:rgba(18,18,25,.78);color:#fff;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:5px;font-size:11px;backdrop-filter:blur(10px);z-index:3}.avatar-mic.recording{background:#7c3aed;border-color:#a78bfa;animation:pulse 1s infinite}.avatar-mic b{font-size:10px}@media(max-width:800px){.tutor-hero{grid-template-columns:1fr}.tutor-avatar-large .avatar-stage{height:220px}.tutor-intro h2{font-size:20px}}
+
+/* LearningHUB — Learn page only: ChatGPT-style reading + conversation flow.
+   No existing controls, functions, icons, or navigation are removed. */
+@media (min-width:801px){
+  .workspace.show{grid-template-columns:248px minmax(0,1fr)}
+  .main{padding:24px 34px 48px}
+  .learn-page-head,.learn-quickbar,.lesson-flow{max-width:1180px;margin-left:auto;margin-right:auto}
+  .lesson-video-card .video-box{min-height:360px;max-height:62vh}
+}
+.lesson-explanation{max-width:1180px;margin:14px auto 0;padding:26px 28px}
+.explanation-head{padding-bottom:4px}
+.explain-layout{grid-template-columns:minmax(0,1.45fr) minmax(240px,.55fr);gap:24px}
+.concept-note{font-size:14px;line-height:1.7}
+.concept-note p{font-size:14px;line-height:1.72}
+.key-list li{padding:11px 12px}
+.lesson-chat{max-width:1180px;margin:22px auto 0;padding:20px 0 0;border-top:1px solid var(--line)}
+.chat-section-head{max-width:900px;margin:0 auto 12px;padding:0 4px}
+.tutor-inline{display:flex;flex-direction:column;gap:0;max-width:900px;margin:0 auto;padding:0;border:1px solid var(--line);background:var(--card);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+.tutor-inline .avatar-panel{display:flex;align-items:center;gap:13px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:var(--panel);padding:10px 13px;margin:0}
+.tutor-inline .avatar-stage{width:74px;height:58px;flex:0 0 74px;border-radius:12px}
+.tutor-inline .avatar-person{transform:scale(.43);transform-origin:center}
+.tutor-inline .avatar-glow{width:70px;height:70px}
+.tutor-inline .avatar-bars{display:none}
+.tutor-inline .avatar-mic{right:5px;bottom:5px;padding:5px 7px;border-radius:9px;font-size:10px}
+.tutor-inline .avatar-mic b{display:none}
+.tutor-inline .avatar-label{display:block;margin:0}
+.tutor-inline .avatar-label b{display:block;font-size:12px}
+.tutor-inline .avatar-label .live{font-size:10px;margin-top:3px}
+.tutor-chat-area{min-height:0;display:flex;flex-direction:column}
+.tutor-chat-area .messages{height:310px;min-height:220px;flex:none;border:0;border-radius:0;background:var(--bg);padding:18px 22px}
+.tutor-chat-area .msg{max-width:760px;margin:12px auto}
+.tutor-chat-area .msg.me{max-width:760px}
+.tutor-chat-area .bubble{font-size:14px;line-height:1.6;padding:10px 13px}
+.tutor-composer{padding:12px 14px 8px;background:var(--card);border-top:1px solid var(--line)}
+.tutor-composer .chatbar{max-width:820px;margin:0 auto}
+.tutor-composer .chatbar input{height:48px;border-radius:16px;background:var(--panel);padding:12px 14px;font-size:14px}
+.tutor-composer .mic-btn,.tutor-composer .ask{height:48px;border-radius:15px}
+.tutor-composer .mic-btn{width:48px;padding:0;justify-content:center}
+.tutor-composer .ask{padding:0 17px}
+.tutor-composer .statusline{max-width:820px;margin:6px auto 0;padding:0 3px}
+.after-explain-tools{max-width:900px;margin:14px auto 0}
+.lesson-map{max-width:1180px;margin:14px auto 0}
+.dark .tutor-inline .messages{background:#171717}
+.dark .tutor-inline .chatbar input{background:#202020;color:#f4f4f4}
+.dark .tutor-inline .chatbar input::placeholder{color:#9ca3af}
+@media(max-width:900px){
+  .lesson-explanation{padding:20px 18px}
+  .lesson-chat{margin-top:18px}
+  .tutor-inline{max-width:none}
+  .tutor-inline .messages{height:300px}
+}
+@media(max-width:600px){
+  .tutor-inline .avatar-panel{padding:9px 10px}
+  .tutor-inline .avatar-stage{width:66px;flex-basis:66px;height:54px}
+  .tutor-inline .messages{height:280px;padding:14px 12px}
+  .tutor-composer{padding:10px}
+  .tutor-composer .chatbar input{font-size:13px}
+  .tutor-composer .ask{padding:0 13px}
+}
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<header class="top">
+  <div class="brand">
+    <div class="logo" title="LearningHUB">
+      <img src="learninghub-icon.png" alt="LearningHUB logo">
+    </div><span>LearningHUB</span>
+  </div>
+  <div class="top-actions">
+    <button class="top-icon mobile-menu" onclick="toggleSide()" title="Open menu">☰</button>
+    <button class="top-icon" onclick="toggleTheme()" title="Theme">☼</button>
+    <button class="login" id="loginBtn" onclick="openLogin()">Log in</button>
+  </div>
+</header>
+
+<section class="landing" id="landing">
+  <h1 class="hello">What do you want to <span>learn today?</span></h1>
+  <p class="sub">Bring your notes, PYQs, videos or a question. LearningHUB helps you learn step by step, practise what matters, and see what to do next.</p>
+  <div class="composer">
+    <textarea id="prompt" placeholder="Ask anything or tell me what you want to learn..."></textarea>
+    <div class="composer-row">
+      <div class="tools">
+        <button class="tool" onclick="document.getElementById('file').click()">＋ Upload</button>
+        <button class="tool" onclick="openQuizSetup()">📝 Quiz me</button>
+        <button class="mic-btn" id="landingMic" onclick="toggleVoice('landing')">🎙️ <span>Speak</span></button>
+      </div>
+      <button class="ask" onclick="startLearning()">Start learning ↗</button>
+    </div>
+    <div class="mic-status" id="landingMicStatus">Type or use your microphone.</div>
+    <input id="file" type="file" hidden accept=".pdf,.ppt,.pptx" onchange="fileChosen(this)">
+  </div>
+  <div class="chips"><button class="chip" onclick="fill('Teach me this topic from the very basics')">🌱 From the basics</button><button class="chip" onclick="fill('Explain this in simple words')">💡 Explain simply</button><button class="chip" onclick="openQuizSetup()">🧠 Quiz me</button><button class="chip" onclick="showWorkspace('progress')">📊 My progress</button></div>
+  <div class="hint">Start without an account. Log in later to keep your history and progress.</div>
+  <div class="features">
+    <div class="feature"><div class="feature-icon">📚</div><b>Learn from your material</b><span>Use PDFs, PYQs, slides and lecture videos as your study sources.</span></div>
+    <div class="feature"><div class="feature-icon">🎯</div><b>Learn at your level</b><span>Start from the basics and move forward when you are ready.</span></div>
+    <div class="feature"><div class="feature-icon">🧠</div><b>Practice smarter</b><span>Quiz, practise, take mock tests and see what needs attention.</span></div>
+  </div>
+</section>
+
+<div class="workspace" id="workspace">
+  <aside class="side" id="side">
+    <div class="side-title"><span>Your study space</span><span class="source-count">3 sources</span></div>
+    <button class="navbtn active" data-page="home" onclick="showWorkspace('home')"><span class="nav-icon ic-purple">⌂</span><span>Home</span></button>
+    <button class="navbtn" data-page="learn" onclick="showWorkspace('learn','your current topic')"><span class="nav-icon ic-blue">▶</span><span>Learn</span></button>
+    <button class="navbtn" data-page="courses" onclick="showWorkspace('courses')"><span class="nav-icon ic-blue">📚</span><span>Courses</span></button>
+    <button class="navbtn" data-page="tutor" onclick="showWorkspace('tutor',currentTopic)"><span class="nav-icon ic-purple">🎓</span><span>AI Tutor</span></button>
+    <button class="navbtn" data-page="upload" onclick="showWorkspace('upload')"><span class="nav-icon ic-cyan">＋</span><span>Add material</span></button>
+    <button class="navbtn" data-page="newchat" onclick="startNewChat()"><span class="nav-icon ic-blue">✦</span><span>New chat</span></button>
+
+    <div class="section-label">Your sources</div>
+    <div class="source-item" onclick="openSource('PYQ 2026','Previous Year Questions · 24 questions')"><div class="source-row"><span class="nav-icon ic-pink">❖</span><div><div class="source-name">PYQ 2026</div><div class="source-meta">Previous year questions</div></div></div><div class="source-actions"><button class="mini-action" onclick="event.stopPropagation();openQuizSetup()">Quiz</button><button class="mini-action" onclick="event.stopPropagation();openPractice('PYQ 2026')">Practice</button><button class="mini-action" onclick="event.stopPropagation();openMock('PYQ 2026')">Mock</button></div></div>
+    <div class="source-item" onclick="openSource('B.Tech PDF Notes','Lecture notes · 18 pages')"><div class="source-row"><span class="nav-icon ic-orange">▤</span><div><div class="source-name">B.Tech PDF Notes</div><div class="source-meta">Lecture notes · 18 pages</div></div></div><div class="source-actions"><button class="mini-action" onclick="event.stopPropagation();showWorkspace('learn','B.Tech PDF Notes')">Learn</button><button class="mini-action" onclick="event.stopPropagation();openQuizSetup()">Quiz</button><button class="mini-action" onclick="event.stopPropagation();openMindMap('B.Tech PDF Notes')">Mind map</button></div></div>
+    <div class="source-item" onclick="openSource('Lecture Videos','YouTube · 6 lessons')"><div class="source-row"><span class="nav-icon ic-green">▷</span><div><div class="source-name">Lecture Videos</div><div class="source-meta">YouTube · 6 lessons</div></div></div><div class="source-actions"><button class="mini-action" onclick="event.stopPropagation();showWorkspace('learn','Lecture Videos')">Watch</button><button class="mini-action" onclick="event.stopPropagation();openPractice('Lecture Videos')">Practice</button></div></div>
+
+    <div class="section-label">Keep nearby</div>
+    <div class="utility">
+      <button class="navbtn" data-page="library" onclick="showWorkspace('library')"><span class="nav-icon ic-yellow">▣</span><span>Library</span></button>
+      <button class="navbtn" data-page="schedule" onclick="showWorkspace('schedule')"><span class="nav-icon ic-blue">◷</span><span>Schedule</span></button>
+      <button class="navbtn" data-page="projects" onclick="showWorkspace('projects')"><span class="nav-icon ic-pink">◆</span><span>Projects</span></button>
+      <button class="navbtn" data-page="progress" onclick="showWorkspace('progress')"><span class="nav-icon ic-green">▥</span><span>Progress</span></button>
+      <button class="navbtn" data-page="settings" onclick="showWorkspace('settings')"><span class="nav-icon ic-orange">⚙</span><span>Settings</span></button>
+    </div>
+    <div class="section-label">Study Studio</div>
+    <div class="studio-card"><h4>Use your current sources</h4><p>Quiz, practise or build a visual map from the PYQs, notes and videos you already have.</p><div class="studio-grid">
+      <button class="studio-btn" onclick="openQuizSetup()"><span class="studio-icon" style="color:#7c3aed">📝</span><strong>Quiz</strong><small>Choose questions</small></button>
+      <button class="studio-btn" onclick="openPractice('your sources')"><span class="studio-icon" style="color:#2563eb">🎯</span><strong>Practice</strong><small>Target weak areas</small></button>
+      <button class="studio-btn" onclick="openMock('your sources')"><span class="studio-icon" style="color:#ec4899">🏆</span><strong>Mock test</strong><small>Exam-style session</small></button>
+      <button class="studio-btn" onclick="openMindMap('your sources')"><span class="studio-icon" style="color:#06b6d4">🕸️</span><strong>Mind map</strong><small>See the topic flow</small></button>
+      <button class="studio-btn" onclick="showWorkspace('saved')"><span class="studio-icon" style="color:#f59e0b">🔖</span><strong>Saved</strong><small>Quick revision</small></button>
+      <button class="studio-btn" onclick="showWorkspace('history')"><span class="studio-icon" style="color:#10b981">↺</span><strong>History</strong><small>Past attempts</small></button>
+    </div></div>
+    <div class="section-label">Available Sources</div>
+    <div class="studio-card"><div class="quick-source"><span class="nav-icon ic-pink">❖</span><div><b>PYQs</b><br><span>Practice + mock tests</span></div></div><div class="quick-source"><span class="nav-icon ic-orange">▤</span><div><b>PDF Notes</b><br><span>Learn + mind map + quiz</span></div></div><div class="quick-source"><span class="nav-icon ic-green">▷</span><div><b>Videos</b><br><span>Watch + ask + practise</span></div></div></div>
+    <div class="section-label">Next for you</div>
+    <div class="studio-card"><p>Fourier Series · Symmetry is currently marked as a weak concept.</p><button class="quick-btn" style="margin-top:10px;width:100%" onclick="showWorkspace('learn','Fourier Series — Symmetry')">Start recommended lesson →</button></div>
+  </aside>
+
+  <main class="main" id="main"></main>
+</div>
+
+<div id="quizSetupModal" aria-hidden="true"><div class="quiz-setup-card"><button class="close" onclick="closeLearningHubQuizSetup()">×</button><h2>📝 Set up your quiz</h2><p>Choose exactly how you want to practise. These settings are ready for the adaptive backend later.</p><div class="quiz-setting"><label>Number of questions</label><div class="quiz-options" id="quizCountOptions"><button class="quiz-option active" data-value="5">5</button><button class="quiz-option" data-value="10">10</button><button class="quiz-option" data-value="15">15</button><button class="quiz-option" data-value="20">20</button><button class="quiz-option" data-value="custom">Custom</button></div><input id="quizCustomCount" class="quiz-custom" type="number" min="1" max="50" placeholder="1–50"></div><div class="quiz-setting"><label>Difficulty</label><div class="quiz-options" id="difficultyOptions"><button class="quiz-option" data-value="easy">Easy</button><button class="quiz-option active" data-value="adaptive">Adaptive</button><button class="quiz-option" data-value="medium">Medium</button><button class="quiz-option" data-value="hard">Hard</button></div></div><div class="quiz-setting"><label>Question type</label><div class="quiz-options" id="typeOptions"><button class="quiz-option active" data-value="mixed">Mixed</button><button class="quiz-option" data-value="mcq">MCQ</button><button class="quiz-option" data-value="short">Short answer</button><button class="quiz-option" data-value="numerical">Numerical</button><button class="quiz-option" data-value="mock">Mock exam</button></div></div><div class="quiz-setting"><label>Focus</label><div class="quiz-options" id="focusOptions"><button class="quiz-option active" data-value="all">All topics</button><button class="quiz-option" data-value="weak">Weak topics</button><button class="quiz-option" data-value="specific">Specific topic</button></div></div><div id="specificTopicWrap" class="specific-topic-wrap"><input id="specificTopic" placeholder="e.g. Fourier Series"></div><div class="setup-note">Adaptive difficulty will use the student's mastery profile when the backend is connected.</div><div class="quiz-setup-actions"><button class="quiz-cancel-btn" onclick="closeQuizSetup()">Cancel</button><button class="quiz-start-btn" onclick="beginConfiguredQuiz()">🚀 Start Quiz</button></div></div></div>
+<div class="modal" id="loginModal"><div class="modalbox"><button class="close" onclick="closeLogin()">×</button><h2>Welcome to LearningHUB</h2><p style="color:var(--muted)">Log in to save your learning history and progress.</p><input placeholder="Email"><input type="password" placeholder="Password"><button class="primary" onclick="doLogin()">Log in</button><p style="text-align:center;color:var(--muted);font-size:12px">Demo frontend — no real account is created.</p></div></div>
+
+<script>
+
+
+let dark=false,logged=false,current='home',currentTopic='your topic',currentCourseId='',score=0,quizIndex=0,quizSettings={questionCount:5,difficulty:'adaptive',type:'mixed',focus:'all'};
+
+
+const qs=[
+{q:'What does HTML mainly define?',opts:['Page structure','Database queries','Server hardware','Git branches'],answer:0,type:'mcq'},{q:'Which CSS property controls spacing inside an element?',opts:['margin','padding','display','position'],answer:1,type:'mcq'},{q:'What is JavaScript commonly used for on a web page?',opts:['Adding interactivity','Only storing files','Replacing HTML','Powering a monitor'],answer:0,type:'mcq'},{q:'Which data structure follows LIFO order?',opts:['Queue','Stack','Graph','Tree'],answer:1,type:'mcq'},{q:'What does a function help you do in programming?',opts:['Reuse a block of logic','Increase screen brightness','Create a database automatically','Connect a printer'],answer:0,type:'mcq'},{q:'Which keyword declares a constant in modern JavaScript?',opts:['var','let','const','fixed'],answer:2,type:'mcq'},{q:'What is the time complexity of binary search on a sorted array?',opts:['O(n)','O(log n)','O(n²)','O(1)'],answer:1,type:'mcq'},{q:'Which HTML tag is used for the largest heading?',opts:['<h6>','<head>','<h1>','<title>'],answer:2,type:'mcq'},{q:'Which CSS layout system is best known for one-dimensional row/column layouts?',opts:['Float','Flexbox','Table','Position'],answer:1,type:'mcq'},{q:'Which value represents true in a Boolean expression?',opts:['0','false','true','null'],answer:2,type:'mcq'},{q:'What is the result of 5 + 7?',answer:'12',type:'short'},{q:'How many bits are in one byte?',answer:'8',type:'numerical'},{q:'Which symbol starts a single-line comment in JavaScript?',answer:'//',type:'short'},{q:'What is 3 × 4?',answer:'12',type:'numerical'},{q:'Which keyword is commonly used to return a value from a JavaScript function?',answer:'return',type:'short'},{q:'What is 10 ÷ 2?',answer:'5',type:'numerical'},{q:'Which data structure follows FIFO order?',opts:['Stack','Queue','Tree','Graph'],answer:1,type:'mcq'},{q:'Which HTTP method is commonly used to retrieve data?',opts:['GET','POST','DELETE','PATCH'],answer:0,type:'mcq'},{q:'Which language is used to style web pages?',opts:['HTML','CSS','SQL','Python'],answer:1,type:'mcq'},{q:'What is 2⁵?',answer:'32',type:'numerical'}];
+function toggleTheme(){dark=!dark;document.getElementById('app').classList.toggle('dark',dark)}
+function toggleSide(){document.getElementById('side').classList.toggle('open')}
+function fill(x){document.getElementById('prompt').value=x;document.getElementById('prompt').focus()}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function capitalize(s){return String(s).charAt(0).toUpperCase()+String(s).slice(1)}
+function fileChosen(input){if(!input?.files?.[0])return;const name=input.files[0].name;const p=document.getElementById('prompt');if(p)p.value='Teach me from my uploaded file: '+name;showWorkspace('learn','Uploaded material — '+name)}
+function startLearning(){const p=document.getElementById('prompt').value.trim();showWorkspace('learn',p||'your current topic')}
+function startNewChat(){current='home';currentTopic='your topic';score=0;quizIndex=0;const landing=document.getElementById('landing');const workspace=document.getElementById('workspace');const prompt=document.getElementById('prompt');const main=document.getElementById('main');const side=document.getElementById('side');if(workspace)workspace.classList.remove('show');if(landing)landing.style.display='block';if(prompt)prompt.value='';if(main)main.innerHTML='';if(side)side.classList.remove('open');document.querySelectorAll('.navbtn[data-page]').forEach(b=>b.classList.remove('active'));window.scrollTo({top:0,behavior:'smooth'})}
+function nav(page){document.querySelectorAll('.navbtn[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('side').classList.remove('open')}
+function openSource(name,meta){showWorkspace('home');setTimeout(()=>{document.getElementById('sourceFocus')?.scrollIntoView({behavior:'smooth',block:'center'});},50);const el=document.getElementById('sourceFocus');if(el)el.innerHTML='<b>'+escapeHtml(name)+'</b><span>'+escapeHtml(meta)+'</span>'}
+function openPractice(source){showWorkspace('practice',source)}
+function openMock(source){showWorkspace('mock',source)}
+function openMindMap(source){showWorkspace('mindmap',source)}
+function showWorkspace(page='home',prompt=''){current=page;if(page==='learn'&&prompt)currentTopic=String(prompt);document.getElementById('landing').style.display='none';document.getElementById('workspace').classList.add('show');nav(page);let html='';
+if(page==='home')html=`<div class="page-title"><h1>Good to see you${logged?', Kesar':''} 👋</h1><p>Your study space keeps your sources and the tools you need close by — without filling the screen with everything at once.</p></div><div class="home-layout"><div><div class="big-card"><div class="row"><div><h2 style="margin:0 0 5px">Continue learning</h2><p style="margin:0;color:var(--muted)">Fourier Series · Symmetry</p></div><span class="badge badge-pink">Needs practice</span></div><div class="progress" style="margin-top:17px"><i style="width:38%"></i></div><div class="quick-row"><button class="quick-btn" onclick="showWorkspace('learn','Fourier Series — Symmetry')">▶ Continue lesson</button><button class="quick-btn" onclick="openPractice('Fourier Series')">🎯 Practise weak topic</button></div></div><div class="big-card"><div class="row"><div><h3 style="margin:0">Your study material</h3><p style="margin:4px 0 0;color:var(--muted);font-size:12px">Use any source as the base for learning and assessment.</p></div><button class="tool" onclick="showWorkspace('upload')">＋ Add</button></div><div id="sourceFocus" class="resource-board"><div class="resource-card" onclick="showWorkspace('learn','PYQ 2026')"><div class="resource-top"><span class="nav-icon ic-pink">❖</span><span class="badge badge-pink">24 Qs</span></div><h3 style="margin:11px 0 5px">PYQ 2026</h3><p>Previous-year questions ready for quiz, practice and mock test.</p></div><div class="resource-card" onclick="showWorkspace('learn','B.Tech PDF Notes')"><div class="resource-top"><span class="nav-icon ic-orange">▤</span><span class="badge badge-orange">18 pages</span></div><h3 style="margin:11px 0 5px">PDF Notes</h3><p>Learn from notes, build a mind map, then check understanding.</p></div><div class="resource-card" onclick="showWorkspace('learn','Lecture Videos')"><div class="resource-top"><span class="nav-icon ic-green">▷</span><span class="badge badge-blue">6 videos</span></div><h3 style="margin:11px 0 5px">Lecture Videos</h3><p>Watch, ask the tutor, practise and save useful lessons.</p></div></div></div></div><div><div class="big-card"><h3 style="margin-top:0">Quick practice</h3><p style="color:var(--muted);font-size:12px">Use your current PYQs, notes and videos.</p><div class="quick-row"><button class="quick-btn" onclick="openQuizSetup()">📝 Quiz</button><button class="quick-btn" onclick="openPractice('your sources')">🎯 Practice</button><button class="quick-btn" onclick="openMock('your sources')">🏆 Mock test</button><button class="quick-btn" onclick="openMindMap('your sources')">🕸️ Mind map</button></div></div><div class="big-card"><h3 style="margin-top:0">Your focus</h3><p style="color:var(--muted);font-size:12px">Fourier Series · Symmetry</p><div class="progress" style="margin-top:10px"><i style="width:38%"></i></div><p style="font-size:12px;color:var(--muted);margin:8px 0 0">38% mastery · recommended next</p><button class="ask" style="margin-top:12px;width:100%" onclick="showWorkspace('learn','Fourier Series — Symmetry')">Learn this →</button></div></div></div>`;
+if(page==='learn')html=`<div class="page-title learn-page-head"><h1>Learn with LearningHUB</h1><p><b>Topic:</b> ${escapeHtml(prompt||currentTopic)} · Video, explanation, sources and practice stay together.</p></div><div class="learn-grid-single lesson-flow"><div class="big-card lesson-video-card"><div style="color:#7c3aed;font-weight:800;font-size:12px">STEP 1 · UNDERSTAND</div><h2>Start from the simplest idea</h2><p style="color:var(--muted)">The connected version will select a source-grounded video and generate the written lesson from your notes/PYQs.</p><div class="video-box"><div class="video-content"><button class="play" onclick="showVideoMessage()">▶</button><strong>YouTube lesson</strong><div class="video-meta">Source-ready video · connect the real URL/API later</div></div></div><span class="source-pill">🔗 Citation-ready · page / slide / timestamp</span></div><div class="lesson-explanation big-card"><div class="explanation-head"><div style="color:#7c3aed;font-weight:800;font-size:12px">STEP 2 · READ & UNDERSTAND</div><div class="explain"><h3>📝 Written explanation</h3><p><b>Concept:</b> Begin with the basic meaning, then build to formulas, examples and common mistakes.</p><p><b>Source:</b> In the backend version, each paragraph will point to the exact PDF page, slide or video timestamp.</p><h3>🧠 Key points</h3><ul class="key-list"><li>Prerequisite → core idea → example.</li><li>Check understanding before increasing difficulty.</li><li>Weak concepts feed the next recommendation.</li></ul></div></div><div class="lesson-chat"><div class="chat-section-head"><b>💬 Ask about what you just read</b><p style="margin:4px 0;color:var(--muted);font-size:12px">Read the explanation and ask your question here, just like a conversation with your tutor.</p></div><div class="tutor-inline"><div class="tutor-chat-area"><div class="messages" id="messages"><div class="msg"><b>💬</b><div class="bubble">I'm here while you read. Ask me about any part of this explanation, ask for another example, or tell me what you didn't understand.</div></div></div><div class="tutor-composer"><div class="chatbar"><input id="chatin" placeholder="Ask about this explanation..."><button class="mic-btn" id="chatMic" onclick="toggleVoice('chat')" title="Speak">🎙️</button><button class="ask" onclick="sendChat()">Send</button></div><div class="statusline" id="chatMicStatus">Tap the microphone to speak.</div></div></div></div></div><div class="after-explain-tools"><div class="big-card" style="padding:16px;background:var(--panel)"><div class="row"><div><b>🕸️ Interactive mind map</b><p style="margin:4px 0;color:var(--muted);font-size:12px">Built from the current source.</p></div><button class="quick-btn" onclick="openMindMap(currentTopic)">Open full map</button></div><div class="mindmap" style="margin-top:12px"><span class="mind-node">Basics</span><span>→</span><span class="mind-node core">${escapeHtml(currentTopic)}</span><span>→</span><span class="mind-node">Practice</span><span>→</span><span class="mind-node">Assessment</span></div></div><div class="quiz-strip"><div><b>📝 Check your understanding</b><p>Choose question count, difficulty, type and focus.</p></div><button class="ask" onclick="openQuizSetup()">Set up quiz →</button></div><div class="tutor-callout"><div class="tutor-callout-icon">🎓</div><div><b>Need more interactive help?</b><p>Open the optional <strong>AI Tutor</strong> from the left menu to learn with the avatar and microphone.</p></div><button class="quick-btn" onclick="showWorkspace('tutor',currentTopic)">Open AI Tutor</button></div></div></div></div>`;
+if(page==='tutor')html=`<div class="page-title"><div><h1>🎓 AI Tutor</h1><p>Ask questions about <b>${escapeHtml(prompt||currentTopic)}</b> by typing or speaking. The tutor is optional, so your Learn page stays focused.</p></div></div><div class="tutor-page"><div class="tutor-hero"><div class="avatar-panel tutor-avatar-large"><div class="avatar-stage" id="avatarStage"><div class="avatar-glow"></div><div class="avatar-person"><div class="avatar-head"><div class="avatar-hair"></div><span class="avatar-eye left"></span><span class="avatar-eye right"></span><span class="avatar-mouth"></span></div><div class="avatar-body"></div></div><div class="avatar-bars"><i></i><i></i><i></i><i></i></div><button class="avatar-mic" id="avatarMic" onclick="toggleVoice('chat')" title="Talk to your tutor"><span>🎙️</span><b>Talk</b></button></div><div class="avatar-label"><b>LearningHUB Tutor</b><span class="live">Ready to teach</span></div></div><div class="tutor-intro"><span class="tutor-tag">Adaptive</span><h2>Ask me anything about this lesson.</h2><p>I can explain a concept simply, work through a problem, give another example, or quiz you. Tap the microphone to talk directly.</p><div class="tutor-suggestions"><button onclick="fillTutor('Explain this topic in very simple words')">💡 Explain simply</button><button onclick="fillTutor('Give me an example')">🧩 Give an example</button><button onclick="fillTutor('Quiz me on this topic')">📝 Quiz me</button></div></div></div><div class="tutor-chat-card"><div class="messages tutor-messages" id="messages"><div class="msg"><b>🎓</b><div class="bubble">Hi! Ask me about this topic. You can type your question or use the microphone and talk directly.</div></div></div><div class="chatbar"><input id="chatin" placeholder="Ask your tutor about this topic..."><button class="mic-btn" id="chatMic" onclick="toggleVoice('chat')" title="Speak">🎙️</button><button class="ask" onclick="sendChat()">Send</button></div><div class="statusline" id="chatMicStatus">Tap the microphone to speak.</div></div></div>`;
+if(page==='upload')html=`<div class="page-title"><h1>Bring your study material</h1><p>Upload PDFs, PYQs, slides, images or notes. The backend can process and ground the tutor later.</p></div><div class="uploadbox"><div class="big">📄</div><h2>Upload study material</h2><p style="color:var(--muted)">PDF · PPT/PPTX · DOC/DOCX · TXT · JPG/PNG</p><button class="filebtn" onclick="document.getElementById('uploadFile').click()">Choose file</button><input id="uploadFile" type="file" hidden accept=".pdf,.ppt,.pptx" onchange="fileChosen(this)"><div id="selectedFile" class="selected-file"></div></div>`;
+if(page==='library')html=`<div class="page-title"><h1>▣ Library</h1><p>Your saved sources and study material, kept easy to reach.</p></div><div class="resource-board"><div class="resource-card"><b>PYQ 2026</b><p>24 questions · Saved source</p></div><div class="resource-card"><b>B.Tech PDF Notes</b><p>18 pages · Saved source</p></div><div class="resource-card"><b>Lecture Videos</b><p>6 lessons · Saved source</p></div></div>`;
+if(page==='schedule')html=`<div class="page-title"><h1>◷ Schedule</h1><p>Plan short, realistic study sessions.</p></div><div class="big-card"><h3>Today's plan</h3><div class="history"><div class="item"><span>Fourier Series · 25 min</span><b>7:00 PM</b></div><div class="item"><span>PYQ practice · 15 min</span><b>8:00 PM</b></div><div class="item"><span>Quick revision · 10 min</span><b>9:00 PM</b></div></div></div>`;
+if(page==='projects')html=`<div class="page-title"><h1>◆ Projects</h1><p>Keep coursework, hackathon work and learning projects in one place.</p></div><div class="cards"><div class="card"><h3>LearningHUB</h3><p>Adaptive learning project · Active</p></div><div class="card"><h3>DSA Practice</h3><p>Topic-wise problem solving</p></div><div class="card"><h3>Semester 3</h3><p>Notes, PYQs and revision</p></div></div>`;
+if(page==='progress')html=`<div class="page-title"><h1>▥ Your progress</h1><p>See what you know and where LearningHUB recommends more practice.</p></div><div class="cards"><div class="card"><h3>Overall mastery</h3><div style="font-size:38px;font-weight:800;color:#7c3aed">64%</div><p>+8% this week</p></div><div class="card"><h3>Quizzes</h3><div style="font-size:38px;font-weight:800">12</div><p>76% average</p></div><div class="card"><h3>Study time</h3><div style="font-size:38px;font-weight:800">8h</div><p>This month</p></div></div><div class="big-card" style="margin-top:14px"><h3>Topic mastery</h3>${topic('Fourier Series',38,'Needs focus')}${topic('Integration',62,'Improving')}${topic('Complex Numbers',91,'Strong')}${topic('JavaScript',71,'Good')}</div>`;
+if(page==='history')html=`<div class="page-title"><h1>↺ History</h1><p>Past quizzes and learning sessions.</p></div><div class="history"><div class="item"><span>Fourier Series quiz</span><b>6/10</b></div><div class="item"><span>CSS Flexbox quiz</span><b>7/10</b></div><div class="item"><span>HTML Basics quiz</span><b>9/10</b></div></div>`;
+if(page==='saved')html=`<div class="page-title"><h1>🔖 Saved lessons</h1><p>Useful explanations and resources for quick revision.</p></div><div class="cards"><div class="card"><h3>Fourier Series Basics</h3><p>Saved lesson · Exam focused</p></div><div class="card"><h3>CSS Flexbox Made Simple</h3><p>Saved lesson · Beginner</p></div></div>`;
+if(page==='settings')html=`<div class="page-title"><h1>⚙ Settings</h1><p>Make LearningHUB comfortable for you.</p></div><div class="big-card"><div class="row"><div><b>Theme</b><p style="color:var(--muted);margin:4px 0">Switch between light and dark mode.</p></div><button class="tool" onclick="toggleTheme()">${dark?'☀ Light':'☾ Dark'}</button></div></div>`;
+if(page==='quiz')renderQuiz();else document.getElementById('main').innerHTML=html;
+}
+function topic(n,p,d){return `<div class="topic"><div style="width:145px"><b>${n}</b><br><small>${d}</small></div><div class="info"><div class="progress"><i style="width:${p}%"></i></div></div><b>${p}%</b></div>`}
+function showVideoMessage(){const box=document.querySelector('.video-box');if(box)box.innerHTML='<div class="video-content"><div style="font-size:34px">▶</div><strong>Lesson source ready</strong><div class="video-meta">Connect the selected YouTube URL here when the content API is added.</div></div>'}
+function openQuizSetup(){document.getElementById('quizSetupModal').classList.add('show');document.getElementById('quizSetupModal').setAttribute('aria-hidden','false')}
+function closeQuizSetup(){document.getElementById('quizSetupModal').classList.remove('show');document.getElementById('quizSetupModal').setAttribute('aria-hidden','true')}
+function beginConfiguredQuiz(){let count=quizSettings.questionCount;if(count==='custom')count=parseInt(document.getElementById('customQuestionCount').value,10);if(!Number.isFinite(count)||count<1||count>50){alert('Choose a number from 1 to 50.');return}quizSettings.questionCount=count;quizSettings.specificTopic=document.getElementById('specificTopic').value;closeQuizSetup();quizIndex=0;score=0;showWorkspace('quiz')}
+function getQuestionForQuiz(index){const requested=quizSettings.type;if(requested==='mixed'||requested==='mock')return qs[index%qs.length];const matching=qs.filter(q=>q.type===requested);return (matching.length?matching[index%matching.length]:qs[index%qs.length])}
+function renderQuiz(){const total=Math.max(1,Math.min(Number(quizSettings.questionCount)||5,50));if(quizIndex>=total){showQuizResult(total);return}const q=getQuestionForQuiz(quizIndex);const typeLabel=q.type==='mcq'?'MCQ':q.type==='numerical'?'Numerical':'Short answer';let body=q.type==='mcq'?`<div class="quick-row" style="display:grid">${q.opts.map((x,i)=>`<button class="quick-btn" style="text-align:left;padding:12px" onclick="answer(${i},${total})">${String.fromCharCode(65+i)}. ${escapeHtml(x)}</button>`).join('')}</div>`:`<div class="chatbar" style="margin-top:18px"><input id="answerInput" placeholder="Type your answer..."><button class="ask" onclick="submitTextAnswer(${total})">Submit</button></div>`;document.getElementById('main').innerHTML=`<div class="page-title"><h1>📝 Quiz</h1><p>Question ${quizIndex+1} of ${total} · ${capitalize(quizSettings.difficulty)} · ${typeLabel}</p></div><div class="big-card"><div style="font-size:20px;font-weight:750;line-height:1.5">${escapeHtml(q.q)}</div>${body}<p style="color:var(--muted);font-size:11px;margin-top:15px">Source-aware preview · the connected version will tag topic, concept, difficulty and source.</p></div>`;const inp=document.getElementById('answerInput');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitTextAnswer(total)})}
+function answer(i,total){const q=getQuestionForQuiz(quizIndex);if(q.type==='mcq'&&i===q.answer)score++;quizIndex++;renderQuiz()}
+function submitTextAnswer(total){const input=document.getElementById('answerInput');if(!input)return;const q=getQuestionForQuiz(quizIndex);if(input.value.trim().toLowerCase()===String(q.answer).trim().toLowerCase())score++;quizIndex++;renderQuiz()}
+function showQuizResult(total){document.getElementById('main').innerHTML=`<div class="big-card" style="text-align:center;padding:38px"><div style="font-size:52px;font-weight:850;color:#7c3aed">${Math.round(score/total*100)}%</div><h2>Nice work.</h2><p style="color:var(--muted)">You got ${score} out of ${total}. In the connected version, this result updates topic mastery, weak concepts and your next recommendation.</p><div class="quick-row" style="justify-content:center"><button class="quick-btn" onclick="openQuizSetup()">Try another quiz</button><button class="ask" onclick="showWorkspace('progress')">See progress →</button></div></div>`}
+
+async function sendChat() {
+    const input = document.getElementById('chatin');
+    const messages = document.getElementById('messages');
+
+    if (!input || !messages) return;
+
+    const question = input.value.trim();
+    if (!question) return;
+
+    const token = localStorage.getItem('learninghubToken');
+
+    if (!token) {
+        messages.insertAdjacentHTML(
+            'beforeend',
+            '<div class="msg"><div class="bubble">Please log in before asking the AI tutor.</div></div>'
+        );
+        return;
+    }
+
+    messages.insertAdjacentHTML(
+        'beforeend',
+        `<div class="msg me"><div class="bubble">${escapeHtml(question)}</div></div>
+         <div class="msg" id="aiThinking"><b>🎓</b><div class="bubble">Thinking...</div></div>`
+    );
+
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+        const response = await fetch('http://localhost:5000/api/ai/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                question: question,
+                course_id: currentCourseId
+            })
+        });
+
+        const data = await response.json();
+        const thinking = document.getElementById('aiThinking');
+
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'AI request failed.');
+        }
+
+        const answer = data.answer || 'The AI returned an empty response.';
+
+        if (thinking) {
+            thinking.removeAttribute('id');
+            thinking.innerHTML =
+                '<b>🎓</b><div class="bubble">' +
+                escapeHtml(answer).replace(/\n/g, '<br>') +
+                '</div>';
+        }
+
+        speakTutor(answer);
+    } catch (error) {
+        console.error('AI chat error:', error);
+
+        const thinking = document.getElementById('aiThinking');
+
+        if (thinking) {
+            thinking.innerHTML =
+                '<b>⚠️</b><div class="bubble">' +
+                escapeHtml(error.message) +
+                '</div>';
+        }
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+}
+
+let recognition=null,voiceMode=null;
+function getSpeechRecognition(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('Voice input is not supported here. Please use Google Chrome or type your message.');return null}if(!recognition){recognition=new SR();recognition.lang='en-IN';recognition.interimResults=true;recognition.continuous=false;recognition.onstart=()=>setMicState(true);recognition.onend=()=>setMicState(false);recognition.onerror=()=>{setMicState(false);setMicStatus('Microphone could not hear you. Check browser permission.')};recognition.onresult=e=>{let text='';for(let i=e.resultIndex;i<e.results.length;i++)text+=e.results[i][0].transcript;if(voiceMode==='landing'){const el=document.getElementById('prompt');if(el)el.value=text}if(voiceMode==='chat'){const el=document.getElementById('chatin');if(el)el.value=text}}}return recognition}
+function toggleVoice(mode){const r=getSpeechRecognition();if(!r)return;if(voiceMode===mode){try{r.stop()}catch(e){}return}try{r.stop()}catch(e){}voiceMode=mode;setMicStatus('Listening… speak now.');try{r.start()}catch(e){setMicState(false);setMicStatus('Microphone is busy. Tap again.')}}
+function fillTutor(text){const input=document.getElementById('chatin');if(input){input.value=text;input.focus()}}
+function setMicState(on){const ids=voiceMode==='chat'?['chatMic','avatarMic']:['landingMic'];ids.forEach(id=>{const b=document.getElementById(id);if(b){b.classList.toggle('recording',on);const span=b.querySelector('span');if(span)span.textContent=on?'🔴':'🎙️';const label=b.querySelector('b');if(label)label.textContent=on?'Listening…':'Talk'}});const stage=document.getElementById('avatarStage');if(stage)stage.classList.toggle('speaking',on);setMicStatus(on?'Listening… speak now.':'Tap the microphone to speak.');if(!on)voiceMode=null}
+function setMicStatus(text){const id=voiceMode==='chat'?'chatMicStatus':'landingMicStatus';const el=document.getElementById(id);if(el)el.textContent=text}
+
+function openLogin(){document.getElementById('loginModal').classList.add('show')}function closeLogin(){document.getElementById('loginModal').classList.remove('show')}function doLogin(){logged=true;closeLogin();document.getElementById('loginBtn').textContent='Account';showWorkspace('home')}
+(function(){const bind=(id,key)=>document.querySelectorAll('#'+id+' .quiz-option').forEach(b=>b.addEventListener('click',()=>{quizSettings[key]=b.dataset.value==='custom'?'custom':b.dataset.value;document.querySelectorAll('#'+id+' .quiz-option').forEach(x=>x.classList.toggle('active',x===b));if(key==='questionCount')document.getElementById('customQuestionCount').classList.toggle('show',b.dataset.value==='custom');if(key==='focus')document.getElementById('specificTopicWrap').classList.toggle('show',b.dataset.value==='specific')}));bind('questionCountOptions','questionCount');bind('difficultyOptions','difficulty');bind('typeOptions','type');bind('focusOptions','focus');document.getElementById('quizSetupModal').addEventListener('click',e=>{if(e.target===document.getElementById('quizSetupModal'))closeQuizSetup()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeQuizSetup();closeLogin()}if(e.key==='Enter'&&document.activeElement?.id==='chatin'){e.preventDefault();sendChat()}})})();
+document.getElementById('landing').style.display='block';document.getElementById('workspace').classList.remove('show');
+</script>
+<script src="app.js"></script>
+</div>
+</body>
+</html>
